@@ -1,0 +1,1734 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Simulador de maniobras SUBE</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Semi+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: sala de control. Barra superior con configuración, área de patio (unifilar / 3D / datos) y columna lateral de operación. */
+:root{
+  --bg:#e9ecee; --panel:#ffffff; --panel2:#f4f6f7; --ink:#1b2227; --muted:#5b666f; --line:#cdd3d8;
+  --accent:#0d6a83; --accent-ink:#ffffff;
+  --energ:#2160c4; --dead:#98a1a9; --earth:#b8781a; --closed:#c62828; --open:#2e7d32; --warn:#a35a00; --warnbg:#fff3e0;
+  --sky:#cfdbe3; --cu:#b06a2c;
+  --f-display:"Barlow Semi Condensed","Arial Narrow",system-ui,sans-serif;
+  --f-body:"Barlow",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,"SFMono-Regular",Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#13181b; --panel:#1b2125; --panel2:#20272c; --ink:#e2e7ea; --muted:#9aa5ad; --line:#323b42;
+  --accent:#3fb0cf; --accent-ink:#0b1417;
+  --energ:#5a9cff; --dead:#5c666e; --earth:#e2a53c; --closed:#ef5350; --open:#55b85a; --warn:#f0a648; --warnbg:#2c2216;
+  --sky:#1d2a33; --cu:#d98b4a; color-scheme:dark }}
+:root[data-theme="dark"]{
+  --bg:#13181b; --panel:#1b2125; --panel2:#20272c; --ink:#e2e7ea; --muted:#9aa5ad; --line:#323b42;
+  --accent:#3fb0cf; --accent-ink:#0b1417;
+  --energ:#5a9cff; --dead:#5c666e; --earth:#e2a53c; --closed:#ef5350; --open:#55b85a; --warn:#f0a648; --warnbg:#2c2216;
+  --sky:#1d2a33; --cu:#d98b4a; color-scheme:dark }
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.45}
+button,select,input{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.wrap{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));max-width:1560px;margin:0 auto}
+header.top{border-bottom:1px solid var(--line);background:var(--panel)}
+header.top .wrap{display:flex;flex-wrap:wrap;align-items:center;gap:12px 24px;padding-block:12px}
+.brand{display:flex;align-items:baseline;gap:10px;min-width:0}
+.brand b{font-family:var(--f-display);font-size:24px;letter-spacing:.06em;font-weight:700}
+.brand span{color:var(--muted);font-size:14px}
+.cfg{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.cfg label{font-family:var(--f-display);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+select,input[type=text],input[type=number]{background:var(--panel2);border:1px solid var(--line);border-radius:4px;padding:6px 8px;min-width:0}
+.btn{background:var(--panel2);border:1px solid var(--line);border-radius:4px;padding:6px 12px;cursor:pointer;white-space:nowrap}
+.btn:hover{border-color:var(--accent)}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:600}
+.btn.sm{padding:3px 9px;font-size:13px}
+.tabs{display:flex;gap:4px;margin-left:auto;flex-wrap:wrap}
+.tab{border:1px solid transparent;background:none;padding:7px 14px;border-radius:4px;cursor:pointer;font-family:var(--f-display);font-weight:600;letter-spacing:.03em;font-size:16px;color:var(--muted)}
+.tab[aria-selected="true"]{background:var(--panel2);border-color:var(--line);color:var(--ink)}
+.app{display:grid;grid-template-columns:minmax(0,1fr) 350px;gap:16px;padding-block:16px}
+@media (max-width:1020px){.app{grid-template-columns:minmax(0,1fr)}}
+.stage{background:var(--panel);border:1px solid var(--line);border-radius:6px;min-width:0;display:flex;flex-direction:column}
+.toolbar{display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px;padding:10px 14px;border-bottom:1px solid var(--line)}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:4px;overflow:hidden}
+.seg button{border:0;background:none;padding:5px 12px;cursor:pointer;font-size:14px}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
+.hint{color:var(--muted);font-size:13px}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:13px;color:var(--muted);padding:10px 14px;border-top:1px solid var(--line)}
+#legBase,#legFc{display:contents}#legFc[hidden]{display:none}
+.legend i{display:inline-block;width:18px;height:4px;border-radius:2px;vertical-align:middle;margin-right:6px}
+.legend i.sq{width:11px;height:11px;border-radius:2px}
+.svgwrap{overflow-x:auto;padding:8px 6px}
+#sld{display:block;min-width:100%}
+#sld .el{cursor:pointer}
+#sld .el:hover .hit{fill:var(--accent);fill-opacity:.1}
+#sld .el:focus{outline:none}
+#sld .el:focus-visible .hit{stroke:var(--accent);stroke-width:1.5;fill-opacity:.08;fill:var(--accent)}
+#sld text{font-family:var(--f-display);fill:var(--ink)}
+#sld .code{font-family:var(--f-mono);font-size:9.5px;fill:var(--muted)}
+.pulse{animation:pulse 1.2s ease-in-out infinite;transform-box:fill-box;transform-origin:center}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.25}}
+@media (prefers-reduced-motion:reduce){.pulse{animation:none}}
+.flow{stroke-dasharray:5 11;animation:flow .9s linear infinite}@keyframes flow{to{stroke-dashoffset:-16}}
+@media (prefers-reduced-motion:reduce){.flow{animation:none}}
+.fcv{font-size:11.5px;font-family:ui-monospace,Menlo,Consolas,monospace}
+#view3d{position:relative;height:clamp(380px,68vh,760px);background:var(--sky);overflow:hidden;border-radius:0 0 6px 6px}
+#view3d canvas{display:block;width:100%;height:100%;touch-action:none}
+/* pantalla completa del patio 3D: la sección entera ocupa la pantalla y la vista 3D llena el espacio libre */
+.stage.fs{position:fixed;inset:0;z-index:50;border-radius:0;border:0;overflow:auto}
+.stage.fs #pane-3d{flex:1;display:flex;flex-direction:column;min-height:0}
+.stage.fs #view3d{flex:1;height:auto;min-height:300px;border-radius:0}
+.stage.fs #acBar,.stage.fs #legend,.stage.fs #modeHint{display:none}
+#tip3d{position:absolute;pointer-events:none;background:var(--panel);border:1px solid var(--line);padding:5px 9px;border-radius:4px;font-size:13px;max-width:min(340px,80%);box-shadow:0 4px 14px rgba(0,0,0,.18)}
+#msg3d{position:absolute;inset:0;display:grid;place-items:center;color:var(--muted);padding:24px;text-align:center}
+.side{display:flex;flex-direction:column;gap:16px;min-width:0}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:14px;min-width:0}
+.card h2{font-family:var(--f-display);font-size:13px;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);margin:0 0 10px;font-weight:600}
+.selcode{font-family:var(--f-mono);font-size:20px;font-weight:500}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:2px 9px;border-radius:999px;font-size:13px;font-weight:600;border:1px solid currentColor}
+.chip.closed{color:var(--closed)} .chip.open{color:var(--open)} .chip.en{color:var(--energ)} .chip.dead{color:var(--dead)} .chip.earth{color:var(--earth)}
+.check{margin:10px 0 0;padding:8px 10px;border-radius:4px;font-size:14px;background:var(--panel2)}
+.check.no{background:var(--warnbg);color:var(--warn)}
+.card.acc{border:2px solid var(--closed);background:var(--warnbg)}
+.iedpane{padding:14px;display:flex;flex-direction:column;gap:14px;min-width:0}
+.iedtop{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap}
+.iec{overflow-x:auto}
+.cabs{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px}
+.cab{background:#5d6a72;border-radius:6px;padding:8px;display:flex;flex-direction:column;gap:8px;border:1px solid #47535a}
+.cabh{color:#fff;font-family:var(--f-display);font-weight:700;font-size:14px}.cabh span{font-weight:500;opacity:.8;margin-left:6px;font-size:12px}
+.ied{background:#2a3035;color:#dfe6ea;border-radius:5px;padding:8px;font-size:12px;box-shadow:inset 0 0 0 1px #454e55}
+.iedh{font-weight:600;margin-bottom:6px;color:#cfd8dc}
+.lcd{background:#a9c48e;color:#15230d;font-family:var(--f-mono,monospace);font-size:12px;padding:6px 8px;border-radius:3px;white-space:pre;min-height:66px;overflow:hidden;box-shadow:inset 0 0 6px rgba(0,0,0,.35)}
+.leds{display:flex;flex-wrap:wrap;gap:4px 10px;margin-top:6px}.ledw{display:inline-flex;align-items:center;gap:4px;font-size:11px}
+.led{width:10px;height:10px;border-radius:50%;background:#4a5257;display:inline-block}
+.led.on.g{background:#3ddc4a;box-shadow:0 0 6px #3ddc4a}.led.on.y{background:#ffc531;box-shadow:0 0 6px #ffc531}.led.on.r{background:#ff3b30;box-shadow:0 0 8px #ff3b30}
+.led.blink{animation:blink .6s steps(2) infinite}@keyframes blink{50%{opacity:.25}}
+.fns{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}.fns span{background:#3a4248;border-radius:3px;padding:1px 5px;font-size:10.5px}
+.mimic{display:flex;flex-wrap:wrap;gap:4px}.mimic span{font-family:var(--f-mono,monospace);font-size:10.5px;padding:1px 5px;border-radius:3px}.mimic .c{background:#c62828;color:#fff}.mimic .o{background:#2e7d32;color:#fff}
+.lr{background:#1f2427;color:#3ddc4a;border:1px solid #555;border-radius:3px;font:600 11px var(--f-mono,monospace);padding:3px 8px;cursor:pointer}.lr.l{color:#ffc531}
+.iedlow{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:14px}@media (max-width:900px){.iedlow{grid-template-columns:minmax(0,1fr)}}
+.iedlow h3{margin:0 0 6px;font-size:15px}
+.soe{max-height:260px;overflow:auto;border:1px solid var(--line);border-radius:4px}.soe table{width:100%;border-collapse:collapse;font-size:12px}.soe td{padding:3px 6px;border-bottom:1px solid var(--line);vertical-align:top}.soe td:first-child{font-family:var(--f-mono,monospace);white-space:nowrap}
+.soe tr.f td{color:var(--closed);font-weight:600}.soe tr.t td{color:var(--warn);font-weight:600}.soe tr.o td{color:var(--open)}
+.didbtn{border:2px solid var(--closed);color:var(--closed);font-weight:700}
+.didbtn[aria-pressed="true"]{background:var(--closed);color:#fff}
+.card.acc h2{color:var(--closed)} .card.acc h3{font-size:13px;margin:10px 0 2px} .card.acc p{margin:4px 0;font-size:14px} .card.acc ul{margin:2px 0;padding-left:18px;font-size:14px}
+.acc-t{font-family:var(--f-display);font-size:18px;font-weight:700;color:var(--closed)}
+.didac input:checked+*{color:var(--closed)} body.didactic #opbar{box-shadow:inset 0 -3px 0 var(--closed)}
+dl.kv{display:grid;grid-template-columns:auto 1fr;gap:3px 12px;margin:10px 0 0;font-size:14px}
+dl.kv dt{color:var(--muted)} dl.kv dd{margin:0;font-variant-numeric:tabular-nums}
+table.st{width:100%;border-collapse:collapse;font-size:14px}
+table.st td{padding:5px 4px;border-top:1px solid var(--line);vertical-align:middle}
+table.st tr:first-child td{border-top:0}
+table.st td.c{font-family:var(--f-mono);font-weight:500;width:3em}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px;vertical-align:middle}
+.log{list-style:none;margin:0;padding:0;max-height:260px;overflow:auto;font-size:13px}
+.log li{padding:5px 0;border-top:1px solid var(--line);display:grid;grid-template-columns:auto 1fr;gap:8px}
+.log li:first-child{border-top:0}
+.log time{font-family:var(--f-mono);color:var(--muted);font-size:12px}
+.log .block{color:var(--warn)} .log .info{color:var(--muted)}
+.proc ol{margin:10px 0 0;padding-left:22px;font-size:14px;display:flex;flex-direction:column;gap:6px}
+.proc li.done{color:var(--muted);text-decoration:line-through;text-decoration-color:var(--line)}
+.proc li.cur{font-weight:600}
+.proc li.cur::marker{color:var(--accent)}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.row > select{flex:1}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:6px;max-width:min(560px,calc(100vw - 32px));font-size:14px;box-shadow:0 6px 24px rgba(0,0,0,.25);z-index:20}
+/* Datos */
+.data{display:grid;grid-template-columns:220px minmax(0,1fr);min-height:420px}
+@media (max-width:700px){.data{grid-template-columns:minmax(0,1fr)}}
+.blist{border-right:1px solid var(--line);padding:10px;display:flex;flex-direction:column;gap:4px}
+@media (max-width:700px){.blist{border-right:0;border-bottom:1px solid var(--line);flex-direction:row;flex-wrap:wrap}}
+.blist button.b{display:flex;justify-content:space-between;gap:8px;text-align:left;border:1px solid transparent;background:none;padding:6px 8px;border-radius:4px;cursor:pointer}
+.blist button.b[aria-current="true"]{background:var(--panel2);border-color:var(--line)}
+.blist button.b small{color:var(--muted)}
+.blist .warnmark{color:var(--warn);font-weight:700}
+.form{padding:16px;display:flex;flex-direction:column;gap:18px;min-width:0}
+.form h3{font-family:var(--f-display);font-size:22px;margin:0;font-weight:600;text-wrap:balance}
+fieldset{border:1px solid var(--line);border-radius:6px;padding:12px 14px 14px;margin:0;min-width:0}
+legend{font-family:var(--f-display);font-weight:600;letter-spacing:.04em;padding:0 6px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px 14px}
+.fld{display:flex;flex-direction:column;gap:3px;min-width:0}
+.fld span{font-size:13px;color:var(--muted)}
+.fld .u{display:flex;align-items:center;gap:6px}
+.fld .u input{flex:1;width:100%}
+.fld .u em{font-style:normal;color:var(--muted);font-size:13px;font-family:var(--f-mono)}
+.calc{font-size:14px;color:var(--muted)} .calc b{color:var(--ink);font-variant-numeric:tabular-nums}
+.warns{margin:0;padding:10px 12px 10px 30px;background:var(--warnbg);color:var(--warn);border-radius:4px;font-size:14px}
+.ok{color:var(--open);font-size:14px}
+.note{font-size:13px;color:var(--muted);max-width:70ch}
+.acbar{display:flex;flex-wrap:wrap;align-items:center;gap:8px 10px;padding:10px 14px;border-bottom:1px solid var(--line);background:var(--panel2)}
+.cfg select{max-width:100%}
+.acbar b{font-family:var(--f-display);font-size:16px;letter-spacing:.03em}
+.acbar .btn{display:inline-flex;align-items:center;gap:8px}
+.app.wide{grid-template-columns:minmax(0,1fr)} .app.wide .side{display:none}
+.calcpane{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr)}
+@media (max-width:900px){.calcpane{grid-template-columns:minmax(0,1fr)}}
+.results{padding:16px;display:flex;flex-direction:column;gap:14px;min-width:0;border-left:1px solid var(--line);background:var(--panel2)}
+@media (max-width:900px){.results{border-left:0;border-top:1px solid var(--line)}}
+.big{display:flex;flex-direction:column;font-family:var(--f-display);font-size:18px}
+.big b{font-size:56px;line-height:1;font-weight:700;color:var(--accent);font-variant-numeric:tabular-nums}
+.big span{font-family:var(--f-body);font-size:14px;color:var(--muted)}
+.res2{display:flex;gap:14px;align-items:flex-start;min-width:0} .res2 svg{flex:none}
+@media (max-width:520px){.res2{flex-direction:column}}
+table.ct{border-collapse:collapse;font-size:13.5px;width:100%;min-width:0}
+table.ct td{padding:6px 6px;border-top:1px solid var(--line);vertical-align:top}
+table.ct td:last-child{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+table.ct td:nth-child(2){color:var(--muted)}
+table.ct thead td{border-top:0;font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+table.cmp td:nth-child(2){color:var(--ink)}
+.verdict{font-family:var(--f-display);font-size:22px;font-weight:600;padding:10px 14px;border-radius:4px;border:1px solid currentColor}
+.verdict.good{color:var(--open)} .verdict.bad{color:var(--warn);background:var(--warnbg)}
+.kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+@media (max-width:520px){.kpis{grid-template-columns:minmax(0,1fr)}}
+.kpis div{display:flex;flex-direction:column;background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:8px 10px}
+.kpis span{font-size:12px;color:var(--muted)} .kpis b{font-size:20px;font-variant-numeric:tabular-nums}
+details summary{cursor:pointer;font-weight:600}
+input:disabled{opacity:.75}
+</style>
+
+<header class="top"><div class="wrap">
+  <div class="brand"><b>SUBE</b><span id="subName">S/E Termales 115 kV</span></div>
+  <div class="cfg">
+    <label for="cfgSel">Configuración</label>
+    <select id="cfgSel">
+      <option value="dbt">Doble barra (principal y reserva) + transferencia</option>
+      <option value="db">Doble barra (principal y reserva)</option>
+      <option value="bpt">Barra principal + transferencia</option>
+      <option value="bs">Barra sencilla</option>
+    </select>
+    <button class="btn" id="btnReset" type="button">Volver a estado normal</button>
+    <button class="btn didbtn" id="didBtn" type="button" aria-pressed="false">⚡ Modo didáctico: apagado</button>
+  </div>
+  <nav class="tabs" role="tablist">
+    <button class="tab" role="tab" id="tab-sld" aria-selected="true" data-tab="sld">Unifilar</button>
+    <button class="tab" role="tab" id="tab-3d" aria-selected="false" data-tab="3d">Patio 3D</button>
+    <button class="tab" role="tab" id="tab-data" aria-selected="false" data-tab="data">Datos de equipos</button>
+    <button class="tab" role="tab" id="tab-ins" aria-selected="false" data-tab="ins">Aisladores</button>
+    <button class="tab" role="tab" id="tab-grid" aria-selected="false" data-tab="grid">Malla de tierra</button>
+    <button class="tab" role="tab" id="tab-shd" aria-selected="false" data-tab="shd">Apantallamiento</button>
+    <button class="tab" role="tab" id="tab-ied" aria-selected="false" data-tab="ied">Sala de control (IED)</button>
+  </nav>
+</div></header>
+
+<main class="wrap app">
+  <section class="stage" id="stage">
+    <div class="toolbar" id="opbar">
+      <div class="seg" role="group" aria-label="Modo de clic">
+        <button type="button" id="mOp" aria-pressed="true">Operar</button>
+        <button type="button" id="mIn" aria-pressed="false">Inspeccionar</button>
+      </div>
+      <div class="seg" role="group" aria-label="Colores del unifilar" id="fcSeg"><button type="button" id="fcOff" aria-pressed="true">Estado de equipos</button><button type="button" id="fcOn" aria-pressed="false">Flujo de carga</button></div>
+      <label class="hint row didac" style="gap:6px"><input type="checkbox" id="didac"> Modo didáctico (sin enclavamientos)</label><label class="hint row" style="gap:6px" id="sndWrap" hidden><input type="checkbox" id="snd" checked> Sonido</label>
+      <span class="hint" id="modeHint">Clic en un interruptor o seccionador para abrirlo o cerrarlo. Los enclavamientos bloquean maniobras inseguras.</span>
+      <span style="margin-left:auto" class="row" id="camBtns" hidden>
+        <button class="btn sm" type="button" id="camAll">Vista general</button>
+        <button class="btn sm" type="button" id="camBus">Desde las barras</button>
+        <button class="btn sm" type="button" id="camAC">Ver acople</button><button class="btn sm" type="button" id="camTR">Ver transformadores</button><button class="btn sm" type="button" id="camHV">Ver lado 230 kV</button><button class="btn sm" type="button" id="camVeh">Ver vía y vehículo</button><button class="btn sm" type="button" id="camCity">Ver la ciudad</button><button class="btn sm primary" type="button" id="btnFS" aria-pressed="false">⛶ Pantalla completa</button>
+        <label class="hint row" style="gap:6px"><input type="checkbox" id="showGrid"> Malla de tierra</label>
+        <label class="hint row" style="gap:6px"><input type="checkbox" id="showShd"> Zona protegida</label>
+        <label class="hint row" style="gap:6px"><input type="checkbox" id="showCity"> Entorno urbano</label>
+        <label class="hint row" style="gap:6px"><input type="checkbox" id="showDim"> Cotas de diseño</label>
+      </span>
+    </div>
+    <div class="acbar" id="acBar"></div>
+    <div id="pane-sld"><div class="svgwrap"><svg id="sld" role="img" aria-label="Diagrama unifilar"></svg></div></div>
+    <div id="pane-3d" hidden><div id="view3d"><div id="msg3d">Cargando vista 3D…</div><div id="tip3d" hidden></div></div></div>
+    <div id="pane-ins" hidden><div class="calcpane"><div class="form" id="insForm"></div><div class="results" id="insRes"></div></div></div>
+    <div id="pane-ied" hidden><div id="iedPane" class="iedpane"></div></div>
+    <div id="pane-shd" hidden><div class="calcpane"><div class="form" id="shdForm"></div><div class="results" id="shdRes"></div></div></div>
+    <div id="pane-grid" hidden><div class="calcpane"><div class="form" id="gridForm"></div><div class="results" id="gridRes"></div></div></div>
+    <div id="pane-data" hidden><div class="data"><div class="blist" id="blist"></div><div class="form" id="form"></div></div></div>
+    <div class="legend" id="legend">
+      <span id="legBase"><span><i style="background:var(--energ)"></i>Energizado</span>
+      <span><i style="background:var(--dead)"></i>Desenergizado</span>
+      <span><i style="background:var(--earth)"></i>Aterrizado</span>
+      <span><i class="sq" style="background:var(--closed)"></i>Cerrado</span>
+      <span><i class="sq" style="background:var(--open)"></i>Abierto</span></span>
+      <span id="legFc" hidden><span><i style="background:#d32f2f"></i>Energizado</span>
+      <span><i style="background:#2e9d4a"></i>Desenergizado</span>
+      <span><i style="background:var(--earth)"></i>Aterrizado</span>
+      <span><i style="background:repeating-linear-gradient(90deg,#ffc400 0 5px,transparent 5px 9px)"></i>Sentido de la potencia</span>
+      <span>Valores del flujo de carga ETAP (caso base, tap 0): BP 109,5 kV (95,2 %), 409 A por línea</span>
+      <span>Equipo: cuadro lleno o cuchilla vertical = cerrado; cuadro vacío o cuchilla inclinada = abierto</span></span>
+      <span>52 interruptor · 89 seccionador · 57 cuchilla de tierra</span>
+    </div>
+  </section>
+
+  <aside class="side">
+    <div class="card acc" id="accCard" hidden></div>
+    <div class="card" id="selCard"></div>
+    <div class="card" id="acCard" hidden></div>
+    <div class="card proc" id="procCard"></div>
+    <div class="card"><h2>Estado de bahías</h2><table class="st" id="stTable"></table></div>
+    <div class="card"><h2>Bitácora de maniobras</h2><ul class="log" id="log"></ul></div>
+  </aside>
+</main>
+<div class="toast" id="toast" hidden></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script src="calculos.js"></script>
+<script>
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const fmt=(n,d=1)=>Number(n).toLocaleString('es-CO',{maximumFractionDigits:d});
+const KEY='sube-sim-v1';
+const CONFIGS={
+  bs:{name:'Barra sencilla',b2:false,bt:false},
+  bpt:{name:'Barra principal + transferencia',b2:false,bt:true},
+  db:{name:'Doble barra (principal y reserva)',b2:true,bt:false},
+  dbt:{name:'Doble barra (principal y reserva) + transferencia',b2:true,bt:true},
+};
+
+/* ---------- Datos por defecto (ejemplo) ---------- */
+const defCB=()=>({ref:'',tipo:'SF6 tanque vivo',un:123,in:1250,icc:31.5,mando:'Resorte',ciclo:'O-0,3 s-CO-3 min-CO'});
+const defDS=()=>({ref:'',tipoB:'Pantógrafo',tipoL:'Apertura central',un:123,in:1250,ik:31.5,mando:'Motor'});
+const defCT=()=>({rel:'600-1200/1',nuc:'3 × 5P20 + 1 × 0,2S',va:30,ith:31.5});
+const defDPS=()=>({ref:'',ur:120,uc:96,inom:10,clase:'SL · estación liviana',upl:280,cont:'Sí'});
+const defWT=on=>({on:!!on,l:0.5,in:1250,ik:31.5,banda:'90–500',fases:'2 fases (B y C)'});
+const defVT=()=>({rel:'115000/√3 : 115/√3 V',clase:'0,2 / 3P',tipo:'Capacitivo'});
+const defTR=()=>({s:40,v1:115,v2:34.5,ucc:10.5,grupo:'YNd11',refr:'ONAN/ONAF'});
+const defLN=d=>({destino:d,long:20,cond:'ACSR 795 kcmil Drake 26/7',amp:900,mva:90});
+const BUSC='3 × ACSR 795 kcmil Drake por fase (triplex)';
+function makeBay(id,tipo,dest){
+  const data={cb:defCB(),ds:defDS(),ct:defCT(),vt:defVT(),dps:defDPS()};
+  if(tipo==='linea'){data.ln=defLN(dest||'S/E remota');data.wt=defWT(false);} else data.tr=defTR();
+  return {id,tipo,fuente:tipo==='linea',data};
+}
+function projTR(b){b.gen=true;b.fuente=true;
+  b.data.tr={tipo:'Autotransformador',fases:'3 unidades monofásicas (banco)',s:135,su:'35 / 40 / 45 MVA por unidad (ONAN/ONAF/OFAF)',v1:115,v2:230,v3:13.8,tap:'+10 × 1 % / −15 × 1 % (lado 230 kV)',ucc:10,grupo:'Y–Y–D (YNa0d1)',refr:'ONAN/ONAF/OFAF'};return b;}
+/* datos de los entregables oficiales: Grupo 1 (parámetros y aislamiento) y Grupo 2 (distancias), S/E Termales 115 kV */
+const G1DPS={ref:'Siemens 3EL2 096-2PJ3',ur:96,uc:77,inom:10,clase:'Clase 3 de descarga de línea',upl:226};
+const G1LN=['Pereira','Dosquebradas','Santa Rosa–Chinchiná'];
+function projDPS(b){Object.assign(b.data.dps,G1DPS);return b;}
+function defaults(){
+  return {v:3,cv:1,config:'bpt',
+    sub:{nombre:'S/E Termales',un:115,um:123,icc:31.5,f:60,inb:2000,bcond:BUSC,ke:1.4,res:1},
+    busvt:{rel:'115000/√3 : 115/√3 V',clase:'0,2 / 3P',tipo:'Inductivo'},
+    bays:[makeBay('L1','linea',G1LN[0]),makeBay('L2','linea',G1LN[1]),makeBay('L3','linea',G1LN[2]),projTR(makeBay('T1','trafo')),projTR(makeBay('T2','trafo'))].map(projDPS),
+    special:{AC:{cb:{...defCB(),in:2000},ds:{...defDS(),in:2000},ct:defCT()},AT:{cb:defCB(),ds:defDS(),ct:defCT()}},
+    ins:{pol:'d',alt:1800,bil:'auto',disco:'p3fl',esp:1289,fuga:3169,diam:170,extra:0},
+    grid:{rho:800,rhos:3000,hs:0.15,lx:112,ly:48,D:5,h:0.6,nr:32,lr:3,i3:30,sf:0.3,tf:0.5,tc:0.5,xr:0,peso:50,mat:'cu_hard',size:'auto'},
+    shd:{zs:350,k:1,punta:3},
+    sw:{}};
+}
+let state=defaults();
+let needNormal=false, oldCv=1;
+try{const s=JSON.parse(localStorage.getItem(KEY)||'null'); if(s&&s.bays&&CONFIGS[s.config]){state=Object.assign(defaults(),s);oldCv=s.cv;}}catch(e){}
+if(state.v!==3){state=defaults();needNormal=true;}
+if(oldCv!==1){state.cv=1;state.config='bpt';needNormal=true;}
+/* santiago confirmó (9-nov): dos barras, principal + transferencia; la bahía central es solo de transferencia (1250 A, Grupo 1) */
+if(!(state.dv>=3)){state.dv=3;state.config='bpt';Object.assign(state.sub,{nombre:'S/E Termales',um:123,icc:31.5,inb:2000,ke:1.4});
+  state.bays.forEach(b=>{const d=b.data;Object.assign(d.cb,{un:123,in:1250,icc:31.5});Object.assign(d.ds,{un:123,in:1250,ik:31.5});d.ct.ith=31.5;Object.assign(d.dps,G1DPS);
+    if(b.tipo==='linea'){const k=+String(b.id).replace(/\D/g,'')-1;if(G1LN[k]&&d.ln)d.ln.destino=G1LN[k];}});
+  Object.assign(state.special.AC.cb,{un:123,in:2000,icc:31.5});Object.assign(state.special.AC.ds,{un:123,in:2000,ik:31.5});Object.assign(state.special.AT.cb,{un:123,in:1250,icc:31.5});Object.assign(state.special.AT.ds,{un:123,in:1250,ik:31.5});
+  needNormal=true;}
+if(state.dv===3){state.dv=4;state.sub.bcond=BUSC;Object.assign(state.ins,{disco:'p3fl',esp:1289,fuga:3169,diam:170,extra:0});
+  state.bays.forEach(b=>{if(b.tipo==='linea'&&b.data.ln)Object.assign(b.data.ln,{long:20,cond:'ACSR 795 kcmil Drake 26/7',amp:900,mva:90});});}
+if(state.gv!==1){state.gv=1;Object.assign(state.grid,{rho:800,rhos:5000,hs:.2,lx:120,ly:60,D:2.5,h:.6,nr:40,lr:9,i3:30,sf:.2,tf:.3,tc:.5,xr:0,peso:50,mat:'cu_hard',size:'auto'});}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(state));}catch(e){}}
+
+/* ---------- Topología ---------- */
+let T;
+function build(){
+  for(const b of state.bays){const d=b.data; d.dps??=defDPS(); d.ct.ith??=31.5; if(b.tipo==='linea') d.wt??=defWT(false);}
+  for(const k of ['AC','AT']) state.special[k].ct.ith??=31.5;
+  state.sub.ke??=1.4; state.busvt??={rel:'115000/√3 : 115/√3 V',clase:'0,2 / 3P',tipo:'Inductivo'};
+  const c=CONFIGS[state.config], els=[], sources=new Set(), loads=new Set();
+  const add=(id,bay,kind,role,a,b,code,name)=>els.push({id,bay,kind,role,a,b,code,name});
+  for(const bay of state.bays){
+    const p=bay.id, tr=bay.tipo==='trafo';
+    add(p+':S1',p,'ds','S1','B1',p+'.a',c.b2?`89-${p}-B1`:`89-${p}-B`,c.b2?'Seccionador a barra principal (B1)':'Seccionador de barra');
+    if(c.b2) add(p+':S2',p,'ds','S2','B2',p+'.a',`89-${p}-B2`,'Seccionador a barra de reserva (B2)');
+    add(p+':CB',p,'cb','CB',p+'.a',p+'.b',`52-${p}`,tr?'Interruptor del transformador':'Interruptor de línea');
+    add(p+':SL',p,'ds','SL',p+'.b',p+'.x',`89-${p}-${tr?'TR':'L'}`,tr?'Seccionador del transformador':'Seccionador de línea');
+    if(c.bt) add(p+':ST',p,'ds','ST',p+'.x','BT',`89-${p}-T`,'Seccionador de transferencia (by-pass)');
+    add(p+':ET',p,'es','ET',p+'.x','G:'+p,`57-${p}`,'Cuchilla de puesta a tierra');
+    if(bay.gen){
+      add(p+':HE',p,'es','HE',p+'.h','G:'+p+'h',`57-${p}-230`,'Cuchilla de tierra lado 230 kV (en la central, fuera del alcance)');
+      add(p+':HS',p,'ds','HS',p+'.hb',p+'.h',`89-${p}-230`,'Seccionador lado 230 kV (en la central, fuera del alcance)');
+      add(p+':HC',p,'cb','HC','C:'+p,p+'.hb',`52-${p}-230`,'Interruptor lado 230 kV (en la central, fuera del alcance)');
+      if(!((p+':HC') in state.sw)){state.sw[p+':HC']=true;state.sw[p+':HS']=true;state.sw[p+':HE']=false;}
+      if(bay.fuente) sources.add('C:'+p); loads.add(p+'.x');
+    } else if(bay.fuente) sources.add(p+'.x'); else if(tr) loads.add(p+'.x');
+  }
+  if(c.b2&&!c.bt){
+    add('AC:S1','AC','ds','S1','B1','AC.a','89-AC-B1','Seccionador del acople a barra 1');
+    add('AC:CB','AC','cb','CB','AC.a','AC.b','52-AC','Interruptor de acople');
+    add('AC:S2','AC','ds','S2','AC.b','B2','89-AC-B2','Seccionador del acople a barra 2');
+  }
+  if(c.bt){
+    add('AT:S1','AT','ds','S1','B1','AT.a',c.b2?'89-AT-B1':'89-AT-B','Seccionador de transferencia a barra '+(c.b2?'1':'principal'));
+    if(c.b2) add('AT:S2','AT','ds','S2','B2','AT.a','89-AT-B2','Seccionador de transferencia a barra 2');
+    add('AT:CB','AT','cb','CB','AT.a','AT.b','52-AT',c.b2?'Interruptor de acople-transferencia':'Interruptor de transferencia');
+    add('AT:ST','AT','ds','ST','AT.b','BT','89-AT-T','Seccionador a barra de transferencia');
+    if(c.b2) add('AT:SA','AT','ds','SA','AT.b','B2','89-AT-A','Seccionador de acople: salida del 52-AT a la barra de reserva (B2)');
+  }
+  // bahías intercaladas: línea, transformador, línea, transformador, línea…
+  const Ls=state.bays.filter(b=>b.tipo==='linea').map(b=>b.id), Ts=state.bays.filter(b=>b.tipo!=='linea').map(b=>b.id), f=[];
+  for(let i=0;i<Math.max(Ls.length,Ts.length);i++){if(Ls[i])f.push(Ls[i]);if(Ts[i])f.push(Ts[i]);}
+  const h=Math.ceil(f.length/2);
+  const order=[...f.slice(0,h),...(c.b2&&!c.bt?['AC']:[]),...(c.bt?['AT']:[]),...f.slice(h)];
+  const byId={}; els.forEach(e=>{byId[e.id]=e; if(!(e.id in state.sw)) state.sw[e.id]=false;});
+  for(const k of Object.keys(state.sw)) if(!byId[k]) delete state.sw[k];
+  const res=Array.from({length:Math.max(0,Math.min(4,Math.round(+state.sub.res||0)))},(_,i)=>'R'+(i+1));
+  T={els,byId,sources,loads,order,c,res,all:[...order,...res],comb:c.b2&&c.bt};
+}
+function normalState(){
+  const c=CONFIGS[state.config]; state.sw={}; state.prot={};
+  state.bays.forEach(b=>{
+    state.sw[b.id+':S1']=true; if(c.b2) state.sw[b.id+':S2']=false;
+    state.sw[b.id+':CB']=true; state.sw[b.id+':SL']=true; b.fuente=b.tipo==='linea'||!!b.gen;
+    if(b.gen){state.sw[b.id+':HC']=true;state.sw[b.id+':HS']=true;state.sw[b.id+':HE']=false;}});
+  if(c.b2&&!c.bt){state.sw['AC:S1']=state.sw['AC:S2']=true;state.sw['AC:CB']=false;}
+  if(c.b2&&c.bt){state.sw['AT:S1']=state.sw['AT:SA']=true;state.sw['AT:CB']=state.sw['AT:S2']=state.sw['AT:ST']=false;}
+  build();
+}
+function adj(ex,noTr){const m=new Map();const l=(u,v)=>{if(!m.has(u))m.set(u,[]);m.get(u).push(v)};
+  for(const e of T.els) if(e.id!==ex&&state.sw[e.id]){l(e.a,e.b);l(e.b,e.a);}
+  if(!noTr) for(const b of state.bays) if(b.gen){l(b.id+'.x',b.id+'.h');l(b.id+'.h',b.id+'.x');} return m;}
+function comp(start,ex,A){A=A||adj(ex);const seen=new Set([start]),st=[start];
+  while(st.length){const u=st.pop();for(const v of (A.get(u)||[])) if(!seen.has(v)){seen.add(v);st.push(v);}} return seen;}
+const hasSrc=s=>[...s].some(n=>T.sources.has(n));
+const hasLoad=s=>[...s].some(n=>T.loads.has(n));
+const hasEarth=s=>[...s].some(n=>n.startsWith('G:'));
+function status(){const A=adj(),en=new Set(),ea=new Set();
+  for(const s of T.sources) for(const n of comp(s,null,A)) en.add(n);
+  const A2=adj(null,true); for(const e of T.els) if(e.kind==='es'&&state.sw[e.id]) for(const n of comp(e.b,null,A2)) ea.add(n);
+  return {en,ea};}
+const bayOf=id=>state.bays.find(b=>b.id===id);
+const dataOf=id=>bayOf(id)?.data||state.special[id];
+
+/* ---------- Enclavamientos ---------- */
+function protTo(p,toAT){const sw=state.sw;state.prot??={};
+  if(toAT){if(!sw[p+':ST']||!sw['AT:CB']) return `Para trasladar las protecciones de ${p}, ${T.byId[p+':ST'].code} y 52-AT deben estar cerrados.`; state.prot[p]='AT'; log(`Selector 43T-${p} en TRANSFERENCIA: las protecciones de ${p} ahora disparan el 52-AT`,'op');}
+  else {if(!sw[p+':CB']||!sw[p+':SL']) return `Para devolver las protecciones de ${p}, su interruptor 52-${p} y ${T.byId[p+':SL'].code} deben estar cerrados.`; delete state.prot[p]; log(`Selector 43T-${p} en NORMAL: las protecciones de ${p} vuelven a disparar el 52-${p}`,'op');}
+  save(); return null;}
+function canOperate(el){
+  const sw=state.sw, closing=!sw[el.id], c=T.c, cb=T.byId[el.bay+(/^H/.test(el.role)?':HC':':CB')];
+  const no=r=>({ok:false,reason:r}), yes={ok:true};
+  if(el.kind==='es'){
+    if(!closing) return yes;
+    const cu=comp(el.a,el.id);
+    if(hasSrc(cu)){
+      const bay=bayOf(el.bay);
+      if(bay&&bay.gen){const p=bay.id,need=[p+':CB',p+':SL',p+':HC',p+':HS'].filter(k=>sw[k]).map(k=>T.byId[k].code);
+        return no(`El autotransformador ${p} está energizado${cu.has('C:'+p)&&sw[p+':HC']?' desde el lado de 230 kV (central)':''}. Para aterrizar ${el.role==='HE'?'el lado de 230 kV':'el lado de 115 kV'} deben estar abiertos ambos lados: ${need.join(', ')||'interruptores y seccionadores'}${sw[p+':HC']||sw[p+':HS']?'. Los equipos de 230 kV se abren por orden a la central':''}.`);}
+      const onlyRemote=bay&&bay.fuente&&![...cu].some(n=>n==='B1'||n==='B2'||n==='BT');
+      return no(onlyRemote?(bay.tipo==='linea'?`La línea sigue energizada desde el extremo remoto (${bay.data.ln.destino}). Pida la apertura en el otro extremo antes de aterrizar.`:`El autotransformador ${bay.id} sigue energizado desde el lado de ${fmt(bay.data.tr.v2)} kV (central de generación). Coordine la apertura de ese lado antes de aterrizar.`)
+        :`El punto está energizado. Abra ${cb.code} y los seccionadores de la bahía antes de aterrizar.`);
+    }
+    return yes;
+  }
+  const cu=comp(el.a,el.id), cv=comp(el.b,el.id);
+  const parallel=cu.has(el.b);
+  const earthMix=(hasEarth(cu)&&hasSrc(cv))||(hasEarth(cv)&&hasSrc(cu));
+  if(el.kind==='cb'){
+    if(closing&&earthMix) return no(`Hay una cuchilla de tierra cerrada en la zona que se energizaría. Ábrala antes de cerrar ${el.code}.`);
+    const pr=state.prot||{};
+    if(!closing&&el.role==='CB'&&bayOf(el.bay)&&sw[el.bay+':ST']&&pr[el.bay]!=='AT') return no(`Primero traslade las protecciones de ${el.bay} al 52-AT (selector 43T-${el.bay} en Transferencia). Si abre ${el.code} así, el circuito quedaría sin interruptor que lo despeje ante una falla.`);
+    if(!closing&&el.bay==='AT'&&Object.keys(pr).length) return no(`Las protecciones de ${Object.keys(pr).join(', ')} están trasladadas al 52-AT. Retorne primero el circuito y devuelva sus protecciones.`);
+    if(!closing&&(el.bay==='AC'||(T.comb&&el.id==='AT:CB'&&sw['AT:SA']))){
+      const both=state.bays.find(b=>sw[b.id+':S1']&&sw[b.id+':S2']);
+      if(both) return no(`La bahía ${both.id} tiene cerrados sus dos seccionadores de barra. Si abre el acople, la corriente entre barras pasaría por esos seccionadores.`);
+    }
+    return yes;
+  }
+  if(el.role==='ST'&&el.bay!=='AT'&&!closing&&(state.prot||{})[el.bay]==='AT') return no(`Las protecciones de ${el.bay} siguen en el 52-AT. Devuélvalas a su propio interruptor (selector 43T-${el.bay} en Normal) antes de abrir ${el.code}.`);
+  if(el.role==='ST'&&el.bay!=='AT'&&closing){
+    const other=T.els.find(e=>e.role==='ST'&&e.bay!=='AT'&&e.id!==el.id&&sw[e.id]);
+    if(other) return no(`La bahía ${other.bay} ya ocupa la barra de transferencia. Solo una bahía puede estar transferida a la vez.`);
+  }
+  if(T.comb&&closing){
+    if(el.id==='AT:ST'&&sw['AT:SA']) return no('La bahía de acople-transferencia está haciendo de acople (89-AT-A cerrado). Abra 52-AT y 89-AT-A antes de usarla como transferencia: un solo interruptor no puede cumplir las dos funciones a la vez.');
+    if(el.id==='AT:SA'&&sw['AT:ST']) return no('La bahía de acople-transferencia está haciendo de transferencia (89-AT-T cerrado). Retorne el circuito y abra 89-AT-T antes de usarla como acople.');
+    if((el.id==='AT:SA'&&sw['AT:S2'])||(el.id==='AT:S2'&&sw['AT:SA'])) return no('Con 89-AT-B2 y 89-AT-A cerrados, el 52-AT quedaría conectado a la barra de reserva por los dos lados. Para el acople se usa 89-AT-B1 con 89-AT-A.');}
+  if(closing&&earthMix) return no('Cerraría sobre una cuchilla de tierra cerrada con el otro lado energizado.');
+  if(parallel) return yes;
+  const actU=hasSrc(cu)||hasLoad(cu), actV=hasSrc(cv)||hasLoad(cv);
+  if(!actU||!actV) return yes;
+  if(el.role==='ST'&&el.bay!=='AT'){
+    return closing?no(`La barra de transferencia y la bahía ${el.bay} no están al mismo potencial. Conecte la bahía de transferencia a la misma barra que alimenta a ${el.bay} y cierre 52-AT primero.`)
+      :no(`Por el by-pass circula la corriente de ${el.bay}. Cierre primero ${cb.code} con sus seccionadores, o abra 52-AT.`);
+  }
+  if(closing){
+    if(hasSrc(cu)&&hasSrc(cv)&&(el.role==='S1'||el.role==='S2')&&c.b2&&el.bay!=='AT')
+      return no('Uniría las barras 1 y 2 sin el acople cerrado. Cierre primero el acople (89-AC-B1, 89-AC-B2 y 52-AC).');
+    if(hasSrc(cu)&&hasSrc(cv)) return no('Uniría dos puntos energizados que no están en paralelo. Ese cierre se hace con un interruptor.');
+    return no(`Cerraría con carga a través de un seccionador. Hágalo con ${cb.code} abierto y luego cierre el interruptor.`);
+  }
+  return no(`Por este seccionador circula corriente. Abra primero ${cb.code}.`);
+}
+
+/* ---------- Operación y bitácora ---------- */
+let selected=null, mode='op', proc=null, logs=[];
+function log(text,cls){const d=new Date();logs.unshift({t:d.toTimeString().slice(0,8),text,cls});logs=logs.slice(0,80);}
+let toastT;
+function toast(t){const el=$('#toast');el.textContent=t;el.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>el.hidden=true,4200);}
+function operate(id){
+  const el=T.byId[id]; if(!el) return;
+  const r=canOperate(el);
+  if(!/^H/.test(el.role)&&(state.lr||{})[el.bay]==='L'){log(`${el.code} bloqueado: la bahía ${el.bay} está en LOCAL (43LR)`,'block');toast(`${el.code}: bahía ${el.bay} en LOCAL. Pase el selector 43LR a REMOTO en la sala de control.`);render();return false;}
+  if(!r.ok&&didactic){mishap(el,r.reason);return true;}
+  if(!r.ok){log(`${el.code} bloqueado. ${r.reason}`,'block');toast(`${el.code} bloqueado: ${r.reason}`);render();return false;}
+  const before=status();
+  state.sw[id]=!state.sw[id];
+  const after=status();
+  log(`${el.code} ${state.sw[id]?'cerrado':'abierto'}`,'op'); soePush(nowMs(),el.bay,`${el.code} ${state.sw[id]?'cerrado':'abierto'} ${/^H/.test(el.role)?'por el operador de la central (orden del centro de control)':'por mando remoto (HMI)'}`);
+  for(const n of ['B1','B2','BT']) if(T.byId['AT:ST']||n!=='BT'){
+    if(before.en.has(n)!==after.en.has(n)) log(`${n==='BT'?'Barra de transferencia':'Barra '+n.slice(1)} ${after.en.has(n)?'energizada':'desenergizada'}`,'info');}
+  for(const b of state.bays){const n=b.id+'.x';
+    if(b.tipo==='trafo'&&before.en.has(n)!==after.en.has(n)) log(`Transformador ${b.id} ${after.en.has(n)?'energizado':'desenergizado'}`,'info');}
+  advance(); save(); render(); return true;
+}
+
+/* ---------- Sala de control: IED, SOE y oscilografía ---------- */
+let soe=[], iedLed={}, oscRec=null, lastGoose=[];
+const nowMs=()=>{const d=new Date();return d.toTimeString().slice(0,8)+'.'+String(d.getMilliseconds()).padStart(3,'0');};
+const tAdd=(base,ms)=>{const d=new Date(base+ms);return d.toTimeString().slice(0,8)+'.'+String(d.getMilliseconds()).padStart(3,'0');};
+function soePush(t,ied,txt,cls=''){soe.unshift({t,ied,txt,cls});soe=soe.slice(0,80);}
+function iedMeas(){const st=status(),sw=state.sw,R={};
+  const own=p=>st.en.has(p+'.x')&&sw[p+':CB']&&sw[p+':SL']&&(sw[p+':S1']||sw[p+':S2']);
+  const viaT=p=>st.en.has(p+'.x')&&sw[p+':ST']&&sw['AT:CB']&&st.en.has('BT');
+  const con=b=>own(b.id)||viaT(b.id);
+  const g230=b=>b.gen&&b.fuente&&sw[b.id+':HC']&&sw[b.id+':HS'];
+  const gens=state.bays.filter(b=>g230(b)&&con(b)), lines=state.bays.filter(b=>b.tipo==='linea'&&con(b));
+  /* Flujo de carga ETAP, caso base tap 0, líneas Drake 20 km, 3 × 90 MVA fp 0,9: BP 95,22 % (109,5 kV), 409 A por línea; N-1 con un banco: BP 90,4 % (104,0 kV) */
+  const ng=gens.length, VB=ng>=2?109.5:104.0, Pl=ng&&lines.length?(ng>=2?68.6:62.0):0, Ql=ng>=2?36.3:34.0, Pg=ng?Pl*lines.length/ng:0;
+  const bus=p=>sw[p+':S2']&&!sw[p+':S1']?'B2':'B1';let netB2=0;
+  for(const b of state.bays){const p=b.id,on=con(b),P=on?(g230(b)?Pg:b.tipo==='linea'?-Pl:0):0,Q=on&&ng?(g230(b)?Ql*lines.length/ng:b.tipo==='linea'?-Ql:0):0;
+    const V=st.en.has(p+'.x')?VB:0, I=V?Math.hypot(P,Q)*1000/(Math.sqrt(3)*V):0;
+    R[p]={P,Q,V,I:own(p)?I:0,via:viaT(p)?'BT':own(p)?bus(p):null,on};
+    if(own(p)&&bus(p)==='B2') netB2+=P;}
+  const tb=state.bays.find(b=>viaT(b.id));
+  R.AT={P:tb?R[tb.id].P:0,Q:tb?R[tb.id].Q:0,V:st.en.has('BT')?VB:0,I:0};R.AT.I=R.AT.V?Math.hypot(R.AT.P,R.AT.Q)*1000/(Math.sqrt(3)*VB):0;
+  const acOn=T.comb?(sw['AT:S1']&&sw['AT:CB']&&sw['AT:SA']):(sw['AC:S1']&&sw['AC:CB']&&sw['AC:S2']);R.AC={P:acOn?-netB2:0,Q:0,V:st.en.has('B1')||st.en.has('B2')?VB:0,I:0};R.AC.I=Math.abs(R.AC.P)*1000/(Math.sqrt(3)*VB);if(T.comb&&acOn) R.AT={...R.AC};
+  R.BB={V1:st.en.has('B1')?VB:0,V2:st.en.has('B2')?VB:0,Vt:st.en.has('BT')?VB:0,ng};
+  return R;}
+function iedTrip(act,el,kind){const t0=Date.now(),M=iedMeas();
+  soePush(nowMs(),'—',`Inicio de falla: ${kind==='es'?'cierre de '+el.code+' sobre parte energizada':kind==='sotf'?'cierre de '+el.code+' sobre tierra':'arco en '+el.code}`,'f');
+  const by={};act.forEach(a=>{(by[a.ied]??=[]).push(a);});lastGoose=[];
+  Object.entries(by).forEach(([ied,list],k)=>{const fn=list[0].fn;
+    iedLed[ied]={trip:true,fn,t:tAdd(t0,22+k*2)};
+    soePush(tAdd(t0,12+k*2),ied,`${fn} arranque (pickup)`);
+    soePush(tAdd(t0,22+k*2),ied,`${fn} DISPARO · GOOSE TRIP → ${list.map(a=>a.cb).join(', ')}`,'t');
+    list.forEach(a=>{soePush(tAdd(t0,71+k*2),a.cb,`${a.cb} abierto (posición 52b) · falla despejada`,'o');lastGoose.push({ied,cb:a.cb});});});
+  soePush(tAdd(t0,320),'Gateway','Reporte MMS al SCADA: disparos, posiciones y registro de falla disponibles');
+  const first=act[0];if(first){const ied=first.ied,b=bayOf(ied);const pre=b?Math.max(80,(M[ied]?.I||300)):800;
+    oscRec={ied,fn:first.fn,el:el.code,t:tAdd(t0,0),pre,fault:(+state.sub.icc||30)*1000*(ied==='BB'?1:.8),clear:4.2,cbs:(by[ied]||[]).map(a=>a.cb)};}}
+function oscSVG(r,W=520,H=170){if(!r) return '';const cyc=10,pts=[[],[],[]],v=[[],[],[]],sc=(H/2-14)/r.fault,n=400;
+  for(let i=0;i<=n;i++){const c=i/n*cyc,t=c/60,x=30+i/n*(W-40),inF=c>=2&&c<2+r.clear,after=c>=2+r.clear;
+    for(let ph=0;ph<3;ph++){const a=2*Math.PI*60*t-ph*2*Math.PI/3;let I=r.pre*Math.sin(a);
+      if(inF){const tf=(c-2)/60;I=r.fault*(Math.sin(a)-(ph===0?Math.sin(-0)*0:0))+r.fault*.6*Math.exp(-tf/0.03)*(ph===0?-1:ph===1?.5:.5)*(ph===0?1:Math.cos(ph));}
+      if(after) I=0;pts[ph].push(`${x.toFixed(1)},${(H/2-I*sc).toFixed(1)}`);}}
+  const col=['#e4572e','#f2c14e','#4f86c6'],x2=30+2/cyc*(W-40),x3=30+(2+r.clear)/cyc*(W-40);
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" style="max-width:${W}px;background:#111a14;border-radius:4px" role="img" aria-label="Oscilografía de corrientes">
+   <line x1="30" y1="${H/2}" x2="${W-10}" y2="${H/2}" stroke="#3a4a3e"/>${pts.map((p,k)=>`<polyline points="${p.join(' ')}" fill="none" stroke="${col[k]}" stroke-width="1.4"/>`).join('')}
+   <line x1="${x2}" y1="8" x2="${x2}" y2="${H-8}" stroke="#fff" stroke-dasharray="3 3" opacity=".6"/><text x="${x2+4}" y="16" font-size="10" fill="#fff">falla</text>
+   <line x1="${x3}" y1="8" x2="${x3}" y2="${H-8}" stroke="#7CFC8A" stroke-dasharray="3 3" opacity=".7"/><text x="${x3+4}" y="16" font-size="10" fill="#7CFC8A">52 abre (~70 ms)</text>
+   <text x="34" y="${H-6}" font-size="10" fill="#9fb">Ia</text><text x="52" y="${H-6}" font-size="10" fill="#f2c14e">Ib</text><text x="70" y="${H-6}" font-size="10" fill="#4f86c6">Ic</text>
+   <text x="${W-12}" y="${H-6}" text-anchor="end" font-size="10" fill="#9fb">${cyc} ciclos · pico ≈ ${fmt(r.fault/1000,1)} kA</text></svg>`;}
+const FUNCS={linea:['21/21N distancia','67N direccional tierra','85 teleprotección','79 recierre','25 sincronismo','50BF falla interruptor'],trafo:['87T diferencial','50/51 sobrecorriente','50N/51N tierra','49 imagen térmica','63 Buchholz','50BF falla interruptor','85 teledisparo a 230 kV'],AC:['50/51 sobrecorriente','50BF falla interruptor','25 sincronismo'],AT:['21/21N (sustituta)','50/51 sobrecorriente','50BF falla interruptor']};
+function renderIED(){const pane=$('#iedPane');if(!pane||tab!=='ied') return;const M=iedMeas(),sw=state.sw;state.lr??={};
+  const led=(on,c,lab,blink)=>`<span class="ledw"><i class="led ${on?'on '+c:''} ${on&&blink?'blink':''}"></i>${lab}</span>`;
+  const lcd=lines=>`<div class="lcd">${lines.map(esc).join('\n')}</div>`;
+  const cbTxt=id=>T.byId[id]?`${T.byId[id].code} ${sw[id]?'CERRADO':'ABIERTO'}`:'';
+  const panel=id=>{const b=bayOf(id),m=M[id]||{},L=iedLed[id],typ=id==='AC'||id==='AT'?id:b.tipo,tit=id==='AC'?'Acople B1–B2':id==='AT'?(T.comb?'Acople-transferencia':'Transferencia'):b.tipo==='linea'?`Línea ${id} · ${b.data.ln.destino}`:`Autotransformador ${id}`;
+    const lr=state.lr[id]==='L';
+    return `<div class="cab"><div class="cabh">Tablero +R ${esc(id)} <span>${esc(tit)}</span></div>
+     <div class="ied"><div class="iedh">IED protección ${typ==='linea'?'21':typ==='trafo'?'87T':'50/51'} · ${esc(id)}</div>
+      ${lcd(L?[`*** DISPARO ${L.fn} ***`,`${L.t}`,`Abrió: ${(iedLed[id].cbs||'')}`,'Reponer con RESET']:[`V  ${fmt(m.V||0,1)} kV`,`I  ${fmt(m.I||0,0)} A`,`P  ${fmt(m.P||0,1)} MW  Q ${fmt(m.Q||0,1)} Mvar`,`${cbTxt(id+':CB')}`])}
+      <div class="leds">${led(true,'g','En servicio')}${led(!!L,'y','Arranque')}${led(!!L,'r','Disparo',true)}${led(state.prot&&state.prot[id]==='AT','y','Prot. en 52-AT')}</div>
+      <div class="fns">${FUNCS[typ].map(f=>`<span>${esc(f)}</span>`).join('')}</div></div>
+     <div class="ied bcu"><div class="iedh">Controlador de bahía (BCU) y medidor</div>
+      <div class="mimic">${['S1','S2','CB','SL','ST','ET'].filter(r=>T.byId[id+':'+r]).map(r=>{const e=id+':'+r;return `<span class="${sw[e]?'c':'o'}">${esc(T.byId[e].code)}</span>`;}).join('')}</div>
+      <div class="row" style="gap:8px;align-items:center;margin-top:6px"><span class="hint" style="color:#cfd8dc">43LR</span><button class="lr ${lr?'l':''}" data-lr="${esc(id)}" type="button">${lr?'LOCAL':'REMOTO'}</button>
+      <span class="hint" style="color:#cfd8dc">${lr?'Mando solo desde el patio':'Mando desde SCADA/HMI'}</span></div></div>
+     ${b&&b.gen?`<div class="ied bcu" style="border-style:dashed"><div class="iedh">Extremo ${fmt(b.data.tr.v2)} kV · central (fuera del alcance)</div>
+      <div class="mimic">${['HC','HS','HE'].map(r=>{const e=id+':'+r;return `<span class="${sw[e]?'c':'o'}">${esc(T.byId[e].code)}</span>`;}).join('')}</div>
+      <div class="hint" style="color:#cfd8dc;margin-top:6px">Se opera por orden al operador de la central. El 87T lo abre por teledisparo (85, intertrip).</div></div>`:''}</div>`;};
+  const BB=M.BB,LB=iedLed.BB;
+  pane.innerHTML=`<div class="iedtop"><div><h3 style="margin:0">Sala de control</h3><p class="note" style="margin:4px 0 0">Tableros de protección y control por bahía. Las medidas cambian con el estado de la subestación. Active el <b>modo didáctico</b> y haga una maniobra indebida para ver actuar los IED.</p></div>
+    <button class="btn" type="button" id="iedReset">Reponer señalizaciones (RESET)</button></div>
+   <div class="iec">${iecSVG()}</div>
+   <div class="cabs">${T.order.map(panel).join('')}
+    <div class="cab"><div class="cabh">Tablero de barras <span>87B + 50BF</span></div><div class="ied"><div class="iedh">IED diferencial de barras 87B</div>
+     ${lcd(LB?[`*** DISPARO 87B ***`,LB.t,'Disparo a todos los 52','de la barra en falla']:[`B1 ${fmt(BB.V1,1)} kV`,`B2 ${fmt(BB.V2,1)} kV`,`BT ${fmt(BB.Vt,1)} kV`,'Id = 0,00 pu  zona sana'])}
+     <div class="leds">${led(true,'g','En servicio')}${led(!!LB,'y','Arranque')}${led(!!LB,'r','Disparo',true)}</div><div class="fns">${['87B diferencial de barras','50BF falla interruptor','Supervisión de TC'].map(f=>`<span>${f}</span>`).join('')}</div></div></div></div>
+   <div class="iedlow"><div><h3>Registro oscilográfico (COMTRADE)</h3>${oscRec?`<p class="note" style="margin:0 0 6px">${esc(oscRec.ied)} · ${esc(oscRec.fn)} · ${esc(oscRec.t)} · evento en ${esc(oscRec.el)}</p>${oscSVG(oscRec)}`:'<p class="note">Sin registros. Se generan cuando una protección dispara.</p>'}</div>
+    <div><h3>Secuencia de eventos (SOE)</h3><div class="soe">${soe.length?`<table>${soe.map(e=>`<tr class="${e.cls}"><td>${esc(e.t)}</td><td>${esc(e.ied)}</td><td>${esc(e.txt)}</td></tr>`).join('')}</table>`:'<p class="note">Sin eventos.</p>'}</div></div></div>`;
+  pane.querySelectorAll('[data-lr]').forEach(bt=>bt.onclick=()=>{const id=bt.dataset.lr;state.lr[id]=state.lr[id]==='L'?'R':'L';soePush(nowMs(),id,`43LR en ${state.lr[id]==='L'?'LOCAL':'REMOTO'}`);log(`Selector 43LR de ${id} en ${state.lr[id]==='L'?'LOCAL':'REMOTO'}`,'info');save();renderIED();});
+  $('#iedReset').onclick=()=>{iedLed={};lastGoose=[];soePush(nowMs(),'HMI','Reposición de señalizaciones (LED reset)');renderIED();};}
+function iecSVG(){const ids=[...T.order,'BB'],W=Math.max(640,ids.length*92+40),H=170,xs=i=>30+i*92+40;const tr=new Set(lastGoose.map(g=>g.ied));
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" style="max-width:${W}px;min-width:620px" role="img" aria-label="Arquitectura IEC 61850">
+   <rect x="${W/2-90}" y="6" width="180" height="26" rx="4" fill="var(--panel2)" stroke="var(--line)"/><text x="${W/2}" y="23" text-anchor="middle" font-size="12">SCADA / Centro de control</text>
+   <line x1="${W/2}" y1="32" x2="${W/2}" y2="48" stroke="var(--muted)" stroke-width="2" ${lastGoose.length?'stroke-dasharray="5 4"':''}>${lastGoose.length?'<animate attributeName="stroke-dashoffset" values="18;0" dur=".6s" repeatCount="indefinite"/>':''}</line>
+   <rect x="${W/2-70}" y="48" width="140" height="22" rx="4" fill="var(--panel2)" stroke="var(--line)"/><text x="${W/2}" y="63" text-anchor="middle" font-size="11">Gateway + HMI (MMS)</text>
+   <line x1="20" y1="84" x2="${W-20}" y2="84" stroke="var(--accent)" stroke-width="3"/><text x="22" y="80" font-size="10" style="fill:var(--accent)">Bus de estación IEC 61850 (Ethernet)</text>
+   <line x1="${W/2}" y1="70" x2="${W/2}" y2="84" stroke="var(--accent)" stroke-width="2"/>
+   ${ids.map((id,i)=>{const x=xs(i),t=tr.has(id);return `<line x1="${x}" y1="84" x2="${x}" y2="100" stroke="var(--accent)" stroke-width="2"/><rect x="${x-34}" y="100" width="68" height="24" rx="4" fill="${t?'#c62828':'var(--panel)'}" stroke="${t?'#c62828':'var(--line)'}"/><text x="${x}" y="116" text-anchor="middle" font-size="11" style="fill:${t?'#fff':'var(--ink)'}">IED ${id==='BB'?'87B':esc(id)}</text>
+      <line x1="${x}" y1="124" x2="${x}" y2="144" stroke="${t?'#c62828':'var(--muted)'}" stroke-width="${t?3:1.5}" ${t?'stroke-dasharray="5 3"':''}>${t?'<animate attributeName="stroke-dashoffset" values="16;0" dur=".4s" repeatCount="indefinite"/>':''}</line>
+      <text x="${x}" y="158" text-anchor="middle" font-size="10" style="fill:${t?'#c62828':'var(--muted)'}">${t?'GOOSE TRIP':id==='BB'?'→ todos los 52':'52 / IO'}</text>`;}).join('')}</svg>`;}
+
+/* ---------- Modo didáctico: consecuencias de maniobras indebidas ---------- */
+let didactic=false, acc=null;
+function faultTrip(nodes){
+  const A=new Map(),l=(u,v)=>{if(!A.has(u))A.set(u,[]);A.get(u).push(v);};
+  for(const e of T.els) if(state.sw[e.id]&&e.kind!=='cb'){l(e.a,e.b);l(e.b,e.a);}
+  for(const b of state.bays) if(b.gen){l(b.id+'.x',b.id+'.h');l(b.id+'.h',b.id+'.x');}
+  const zone=new Set();nodes.forEach(n=>comp(n,null,A).forEach(x=>zone.add(x)));
+  const relays=[],trips=[],act=[];
+  const buses=['B1','B2','BT'].filter(b=>zone.has(b));
+  if(buses.length) relays.push(`87B · diferencial de barras (${buses.join(', ')}): dispara todos los interruptores conectados a esa barra`);
+  for(const e of T.els) if(e.kind==='cb'&&state.sw[e.id]&&(zone.has(e.a)||zone.has(e.b))){
+    trips.push(e.id); const b=bayOf(e.bay);
+    act.push(buses.length?{ied:'BB',fn:'87B',cb:e.code}:{ied:e.bay,fn:e.bay==='AC'?'50/51':e.bay==='AT'?'21 (sustituta)':b&&b.tipo==='linea'?'21 Z1':'87T',cb:e.code});
+    if(e.role==='HC'){relays.push(`87T · diferencial de ${e.bay} + teledisparo (intertrip, 85) a la central: abre ${e.code}`);continue;}
+    if(!buses.length) relays.push(e.bay==='AC'?'50/51 · sobrecorriente del acople':e.bay==='AT'?'Protección trasladada al 52-AT':b&&b.tipo==='linea'?`21 · distancia, zona 1, de ${e.bay}`:`87T · diferencial del autotransformador ${e.bay}`);}
+  for(const b of state.bays) if(b.fuente&&!b.gen&&zone.has(b.id+'.x')){
+    relays.push(b.tipo==='linea'?`21 · distancia en el extremo remoto (${b.data.ln.destino}): abre la línea ${b.id} desde allá`:`87T / 21 del lado de 230 kV: la central abre el lado de ${fmt(b.data.tr.v2)} kV de ${b.id}`);b.fuente=false;}
+  trips.forEach(id=>state.sw[id]=false); build();
+  return {relays:[...new Set(relays)],trips,act};
+}
+function mishap(el,reason){
+  const sw=state.sw,closing=!sw[el.id],before=status();
+  const A0=adj(el.id),earthMix=el.kind!=='es'&&((hasEarth(comp(el.a,el.id,A0))&&hasSrc(comp(el.b,el.id,A0)))||(hasEarth(comp(el.b,el.id,A0))&&hasSrc(comp(el.a,el.id,A0))));
+  let kind;
+  if(el.kind==='es') kind='es';
+  else if(el.kind==='cb') kind=closing&&earthMix?'sotf':'warn';
+  else kind=(el.role==='ST'&&closing&&T.els.some(e=>e.role==='ST'&&e.bay!=='AT'&&e.id!==el.id&&sw[e.id]))?'warn':(closing?(earthMix?'dsearth':'dsclose'):'dsopen');
+  sw[el.id]=closing; build();
+  let r={relays:[],trips:[],act:[]};
+  if(kind==='sotf'){sw[el.id]=false;r={relays:[`50/51 SOTF · cierre sobre falla: ${el.code} dispara instantáneamente`],trips:[el.id],act:[{ied:el.bay,fn:'50 SOTF',cb:el.code}]};build();}
+  else if(kind!=='warn') r=faultTrip(el.kind==='es'?[el.a]:[el.a,el.b]);
+  const after=status();
+  const lost=[...['B1','B2','BT'].filter(n=>before.en.has(n)&&!after.en.has(n)).map(n=>n==='BT'?'Barra de transferencia':'Barra '+n),
+    ...state.bays.filter(b=>before.en.has(b.id+'.x')&&!after.en.has(b.id+'.x')).map(b=>(b.tipo==='linea'?'Línea ':'Autotransformador ')+b.id)];
+  const cb=T.byId[el.bay+':CB'];
+  const T_={
+    es:['Cierre de cuchilla de tierra sobre un punto energizado',`Al cerrar ${el.code} se conectó a tierra un punto con tensión: es una falla trifásica franca a tierra con la corriente de cortocircuito completa (≈ ${fmt(state.sub.icc)} kA). La cuchilla recibe el arco y esfuerzos electrodinámicos, la malla sube de potencial y cualquier persona cerca está en riesgo grave.`,`Abrir ${cb?cb.code:'el interruptor'}, abrir los seccionadores 89 de ambos lados, pedir la apertura del extremo remoto o de la central, verificar ausencia de tensión y solo entonces cerrar ${el.code}. Use la maniobra guiada "Sacar de servicio y aterrizar".`],
+    dsopen:['Apertura de seccionador bajo carga',`${el.code} no tiene cámara de extinción. Al separar los contactos con corriente se formó un arco que no se apaga solo: se alarga, quema los contactos y salta entre fases o a tierra, convirtiéndose en un cortocircuito. Es una de las causas más comunes de accidentes graves por arco eléctrico en subestaciones.`,`Primero abrir ${cb?cb.code:'el interruptor 52'}, que sí interrumpe la corriente, y después los seccionadores 89. Si es un by-pass, cierre antes el interruptor en paralelo.`],
+    dsclose:['Cierre de seccionador con carga o entre puntos a distinto potencial',`Al cerrar ${el.code} el seccionador tuvo que establecer corriente. Se forma un arco de precebado entre las cuchillas que las suelda o las destruye y puede evolucionar a falla entre fases.`,`Cerrar los seccionadores con el interruptor abierto (sin corriente) y luego cerrar el 52. Para unir las barras B1 y B2 se cierra primero el acople completo (89-AC-B1, 89-AC-B2 y 52-AC).`],
+    dsearth:['Energización sobre una cuchilla de tierra cerrada',`Al cerrar ${el.code} se energizó una zona que tenía una cuchilla de tierra (57) cerrada. Es un cortocircuito franco a tierra establecido por un seccionador.`,`Antes de energizar, abra todas las cuchillas de tierra de la zona y retire las tierras portátiles. Luego cierre seccionadores y, por último, el interruptor.`],
+    sotf:['Cierre de interruptor sobre falla',`${el.code} cerró sobre una zona aterrizada por una cuchilla 57. El interruptor sí soporta el cierre sobre falla y su protección lo abrió de inmediato, pero el equipo sufrió el esfuerzo de un cortocircuito y la cuchilla de tierra recibió la corriente de falla.`,`Verificar que no haya cuchillas de tierra cerradas ni tierras portátiles antes de energizar.`],
+    warn:['Maniobra insegura (sin arco inmediato)',`${reason} La maniobra se hizo, pero la instalación quedó en una condición de riesgo.`,`Siga la secuencia que indica el enclavamiento o use la maniobra guiada correspondiente.`]};
+  const [title,why,fix]=T_[kind];
+  acc={el:el.id,kind,title,why,fix,reason,relays:r.relays,trips:r.trips,lost,boom:kind!=='warn'};
+  if(r.act.length){iedTrip(r.act,el,kind);Object.keys(iedLed).forEach(k=>{iedLed[k].cbs=r.act.filter(a=>a.ied===k).map(a=>a.cb).join(', ');});}
+  log(`${kind==='warn'?'⚠':'💥'} ${title}: ${el.code}`,'block');
+  r.trips.forEach(id=>log(`${T.byId[id].code} disparado por protección`,'block'));
+  if(acc.boom){boomSound();boom3D(el.id);}
+  advance(); save(); render();
+}
+function renderAcc(){const c=$('#accCard'); if(!acc){c.hidden=true;return;} c.hidden=false;
+  const li=a=>a.length?`<ul>${a.map(x=>`<li>${esc(x)}</li>`).join('')}</ul>`:'<p class="hint" style="margin:0">Ninguno.</p>';
+  c.innerHTML=`<h2>${acc.boom?'Accidente simulado':'Condición insegura'}</h2><div class="acc-t">${esc(acc.title)} · ${esc(T.byId[acc.el].code)}</div>
+   <p>${esc(acc.why)}</p>
+   <h3>Protecciones que actuaron</h3>${li(acc.relays)}
+   <h3>Interruptores que abrieron</h3>${li(acc.trips.map(id=>T.byId[id].code))}
+   <h3>Quedó sin tensión</h3>${li(acc.lost)}
+   <h3>Lo que decía el enclavamiento</h3><p>${esc(acc.reason)}</p>
+   <h3>Secuencia correcta</h3><p>${esc(acc.fix)}</p>
+   <div class="row" style="gap:8px"><button class="btn primary" type="button" id="accReset">Restablecer estado normal</button><button class="btn" type="button" id="accClose">Cerrar</button></div>`;
+  $('#accReset').onclick=()=>{acc=null;iedLed={};lastGoose=[];normalState();proc=null;log('Estado normal restablecido después del accidente simulado','info');save();render();};
+  $('#accClose').onclick=()=>{acc=null;render();};}
+function boomSound(){if(!$('#snd').checked) return;
+  try{const A=window._ac||(window._ac=new (window.AudioContext||window.webkitAudioContext)()),n=A.sampleRate*1.4|0,b=A.createBuffer(1,n,A.sampleRate),d=b.getChannelData(0);
+    for(let i=0;i<n;i++) d[i]=(Math.random()*2-1)*Math.pow(1-i/n,2.5);
+    const s=A.createBufferSource();s.buffer=b;const f=A.createBiquadFilter();f.type='lowpass';f.frequency.value=1600;const g=A.createGain();g.gain.value=.7;s.connect(f).connect(g).connect(A.destination);s.start();
+    const o=A.createOscillator();o.type='sawtooth';o.frequency.value=120;const g2=A.createGain();g2.gain.setValueAtTime(.18,A.currentTime);g2.gain.exponentialRampToValueAtTime(.001,A.currentTime+.9);o.connect(g2).connect(A.destination);o.start();o.stop(A.currentTime+.9);}catch(e){}}
+function boom3D(id){if(!three||!three.root||!three.objs[id]) return;
+  const bb=new THREE.Box3().setFromObject(three.objs[id]),c=bb.getCenter(new THREE.Vector3());c.y=Math.max(c.y,bb.max.y-.4);
+  const g=new THREE.Group();three.root.add(g);const L=new THREE.PointLight(0xffd080,0,45,1.6);L.position.copy(c);g.add(L);
+  if(!three.flashTex){const cv=document.createElement('canvas');cv.width=cv.height=128;const x=cv.getContext('2d'),gr=x.createRadialGradient(64,64,0,64,64,64);gr.addColorStop(0,'rgba(255,255,240,1)');gr.addColorStop(.25,'rgba(190,220,255,.9)');gr.addColorStop(.5,'rgba(255,170,60,.5)');gr.addColorStop(1,'rgba(255,120,0,0)');x.fillStyle=gr;x.fillRect(0,0,128,128);three.flashTex=new THREE.CanvasTexture(cv);}
+  const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:three.flashTex,blending:THREE.AdditiveBlending,depthWrite:false,transparent:true}));sp.position.copy(c);g.add(sp);
+  const parts=[],sm=[];
+  for(let i=0;i<90;i++){const m=new THREE.Mesh(geo('spark',()=>new THREE.BoxGeometry(.07,.07,.07)),new THREE.MeshBasicMaterial({color:i%3?0xffb640:0xfff2b0,transparent:true}));m.position.copy(c);g.add(m);
+    parts.push({m,v:new THREE.Vector3(Math.random()-.5,Math.random()*.9+.1,Math.random()-.5).normalize().multiplyScalar(3+Math.random()*9)});}
+  for(let i=0;i<12;i++){const m=new THREE.Mesh(geo('smoke',()=>new THREE.SphereGeometry(.5,10,8)),new THREE.MeshBasicMaterial({color:0x3a3a3a,transparent:true,opacity:.5,depthWrite:false}));m.position.copy(c).add(new THREE.Vector3((Math.random()-.5)*.8,0,(Math.random()-.5)*.8));g.add(m);sm.push({m,v:.6+Math.random()*.8});}
+  three.fx=(three.fx||[]).concat({g,L,sp,parts,sm,t:0});}
+function fx3D(dt){if(!three.fx||!three.fx.length) return;
+  three.fx=three.fx.filter(f=>{f.t+=dt;const t=f.t;
+    const fl=t<1.2?(Math.random()>.35?1:.4):0;f.L.intensity=fl*14*Math.exp(-t*1.6);f.sp.material.opacity=Math.max(0,fl*Math.exp(-t*1.3));const s=2+t*6;f.sp.scale.set(s,s,1);
+    f.parts.forEach(p=>{if(p.m.position.y<=.05) return;p.v.y-=9.8*dt;p.m.position.addScaledVector(p.v,dt);p.m.material.opacity=Math.max(0,1-t/2.2);});
+    f.sm.forEach(o=>{o.m.position.y+=o.v*dt;const k=1+t*1.4;o.m.scale.set(k,k,k);o.m.material.opacity=Math.max(0,.5-t*.12);});
+    if(t>4.2){three.root.remove(f.g);return false;}return true;});}
+
+/* ---------- Maniobras guiadas ---------- */
+const PROCS={transfer:'Pasar a barra de transferencia',ret:'Retornar desde transferencia',swap:'Cambiar de barra (principal ↔ reserva)',all:'Pasar todos los circuitos a la otra barra',out:'Sacar de servicio y aterrizar'};
+function stepDone(s){return s.manual?s.done:!!state.sw[s.id]===s.close;}
+function advance(){if(!proc) return; while(proc.i<proc.steps.length&&stepDone(proc.steps[proc.i])) proc.i++;}
+function makeProc(kind,p){
+  const c=T.c, sw=state.sw, code=id=>T.byId[id].code, bay=bayOf(p), S=[];
+  const step=(id,close,text)=>S.push({id,close,text}); const manual=(text,act)=>S.push({manual:true,text,act,done:false});
+  const err=m=>({error:m});
+  const bus=sw[p+':S1']?'S1':(sw[p+':S2']?'S2':null);
+  const K=T.comb?'AT':'AC', KB2=T.comb?'AT:SA':'AC:S2', busyT=T.comb&&T.els.some(e=>e.role==='ST'&&e.bay!=='AT'&&sw[e.id]);
+  const coupler=()=>{if(T.comb){if(sw['AT:CB']&&!sw['AT:SA']) step('AT:CB',false,'Abrir 52-AT.'); if(sw['AT:ST']) step('AT:ST',false,`Abrir ${code('AT:ST')}.`); if(sw['AT:S2']) step('AT:S2',false,`Abrir ${code('AT:S2')}.`);}
+    if(!sw[K+':S1']) step(K+':S1',true,`Cerrar ${code(K+':S1')}.`); if(!sw[KB2]) step(KB2,true,`Cerrar ${code(KB2)}${T.comb?': une la salida del 52-AT con la barra de reserva':''}.`);
+    if(!sw[K+':CB']) step(K+':CB',true,`Cerrar 52-${K}${T.comb?' (trabajando como acople)':''}. Energiza la barra que estaba sin tensión y deja las dos barras equipotenciales.`);
+    manual(`Bloquear el mando del 52-${K} para que no abra mientras se pasan circuitos de una barra a otra.`);};
+  const bn=r=>c.b2?(r==='S1'?'barra principal':'barra de reserva'):'barra principal';
+  if(kind==='transfer'){
+    if(!c.bt) return err('Esta configuración no tiene barra de transferencia.');
+    if(sw[p+':ST']) return err(`${p} ya está en la barra de transferencia.`);
+    const other=T.els.find(e=>e.role==='ST'&&e.bay!=='AT'&&sw[e.id]); if(other) return err(`La bahía ${other.bay} ocupa la barra de transferencia.`);
+    if(!bus||!sw[p+':CB']||!sw[p+':SL']) return err(`${p} debe estar en servicio por su interruptor para transferirla.`);
+    const o=bus==='S1'?'S2':'S1';
+    if(T.comb&&sw['AT:SA']){if(sw['AT:CB']) step('AT:CB',false,'Abrir 52-AT: deja de trabajar como acople. Ningún circuito puede quedar con sus dos seccionadores de barra cerrados.'); step('AT:SA',false,`Abrir ${code('AT:SA')}. La bahía de acople-transferencia queda libre para hacer de transferencia.`);}
+    if(c.b2&&sw['AT:'+o]) step('AT:'+o,false,`Abrir ${code('AT:'+o)}, para que la bahía de transferencia quede solo en la ${bn(bus)}.`);
+    step('AT:'+bus,true,`Cerrar ${code('AT:'+bus)}: conecta la bahía de transferencia a la ${bn(bus)}, la misma de ${p}.`);
+    step('AT:ST',true,`Cerrar ${code('AT:ST')} hacia la barra de transferencia.`);
+    step('AT:CB',true,`Cerrar 52-AT. Energiza la barra de transferencia; si estuviera en falla, el interruptor dispara.`);
+    step(p+':ST',true,`Cerrar ${code(p+':ST')}. Queda en paralelo con ${code(p+':CB')}, así que no establece corriente.`);
+    manual(`Trasladar protecciones: poner el selector 43T-${p} en TRANSFERENCIA. Los disparos de la protección de ${p} (con sus TC de bahía o los del 52-AT, según el esquema) pasan del 52-${p} al 52-AT.`,()=>{const e=protTo(p,true);if(e) toast(e);});
+    step(p+':CB',false,`Abrir ${code(p+':CB')}. La carga sigue por la barra de transferencia.`);
+    step(p+':SL',false,`Abrir ${code(p+':SL')}, ya sin carga.`);
+    step(p+':'+bus,false,`Abrir ${code(p+':'+bus)}. ${code(p+':CB')} queda aislado para mantenimiento.`);
+  } else if(kind==='ret'){
+    if(!c.bt||!sw[p+':ST']) return err(`${p} no está en la barra de transferencia.`);
+    const ab=sw['AT:S1']?'S1':(sw['AT:S2']?'S2':'S1');
+    if(sw[p+':ET']) return err(`Abra primero ${code(p+':ET')}.`);
+    step(p+':'+ab,true,`Cerrar ${code(p+':'+ab)} (el interruptor de la bahía está abierto, no hay carga).`);
+    step(p+':SL',true,`Cerrar ${code(p+':SL')}.`);
+    step(p+':CB',true,`Cerrar ${code(p+':CB')}. Queda en paralelo con 52-AT.`);
+    manual(`Devolver protecciones: poner el selector 43T-${p} en NORMAL. Los disparos vuelven al 52-${p}.`,()=>{const e=protTo(p,false);if(e) toast(e);});
+    step(p+':ST',false,`Abrir ${code(p+':ST')}. Hay camino en paralelo por ${code(p+':CB')}.`);
+    step('AT:CB',false,'Abrir 52-AT. La barra de transferencia queda desenergizada.');
+    step('AT:ST',false,`Abrir ${code('AT:ST')}.`);
+    if(T.comb){if(ab!=='S1'){step('AT:'+ab,false,`Abrir ${code('AT:'+ab)}.`);step('AT:S1',true,`Cerrar ${code('AT:S1')}.`);}
+      step('AT:SA',true,`Cerrar ${code('AT:SA')}. La bahía vuelve a quedar lista como acople, con el 52-AT abierto (estado normal).`);}
+    else step('AT:'+ab,false,`Abrir ${code('AT:'+ab)}.`);
+  } else if(kind==='swap'){
+    if(!c.b2) return err('Esta configuración tiene una sola barra principal.');
+    if(!bus) return err(`${p} no está conectada a ninguna barra.`);
+    if(sw[p+':S1']&&sw[p+':S2']) return err(`${p} tiene cerrados los dos seccionadores de barra. Abra uno.`);
+    if(busyT) return err('La bahía de acople-transferencia está ocupada como transferencia. Retorne primero el circuito transferido: con una sola bahía no se puede hacer de acople y de transferencia al mismo tiempo.');
+    const to=bus==='S1'?'S2':'S1';
+    coupler();
+    step(p+':'+to,true,`Cerrar ${code(p+':'+to)}. Las barras ya están equipotenciales, así que no establece corriente.`);
+    step(p+':'+bus,false,`Abrir ${code(p+':'+bus)}. ${p} queda en la ${bn(to)}.`);
+    manual(`Desbloquear el mando del 52-${K}. Si las dos barras quedan con circuitos, el acople puede seguir cerrado; si se separan, ábralo.`);
+  } else if(kind==='all'){
+    if(!c.b2) return err('Esta configuración tiene una sola barra principal.');
+    const onB1=state.bays.filter(b=>sw[b.id+':S1']&&!sw[b.id+':S2']).length, onB2=state.bays.filter(b=>sw[b.id+':S2']&&!sw[b.id+':S1']).length;
+    const from=onB1>=onB2?'S1':'S2', to=from==='S1'?'S2':'S1', fromBus=from==='S1'?'B1':'B2';
+    if(busyT) return err('La bahía de acople-transferencia está ocupada como transferencia. Retorne primero el circuito transferido.');
+    coupler();
+    state.bays.forEach(b=>{if(sw[b.id+':'+from]&&!sw[b.id+':'+to]) step(b.id+':'+to,true,`Cerrar ${code(b.id+':'+to)} (${b.id} a la ${bn(to)}).`);});
+    state.bays.forEach(b=>{if(sw[b.id+':'+from]) step(b.id+':'+from,false,`Abrir ${code(b.id+':'+from)}.`);});
+    manual(`Desbloquear el mando del 52-${K}.`);
+    step(K+':CB',false,`Abrir 52-${K}. La ${bn(from)} queda desenergizada.`);
+    {const iso=from==='S1'?K+':S1':KB2;step(iso,false,`Abrir ${code(iso)}. La ${bn(from)} queda aislada para mantenimiento.`);}
+    S.title=`Pasar todos los circuitos a la ${bn(to)}`;
+  } else if(kind==='out'){
+    if(sw[p+':ST']) return err(`Primero retorne ${p} desde la barra de transferencia.`);
+    if(bay.tipo==='trafo'&&!bay.gen) manual(`Coordinar con la central la apertura del lado de ${fmt(bay.data.tr.v2)} kV${bay.data.tr.v3?` y ${fmt(bay.data.tr.v3)} kV`:''} del ${bay.gen?'autotransformador':'transformador'} ${p}.`,bay.fuente?()=>{bay.fuente=false;build();log(`Lado de ${fmt(bay.data.tr.v2)} kV de ${p} abierto`,'info');}:undefined);
+    const other=bay.gen?state.bays.filter(b=>b.gen&&b.id!==p).map(b=>b.id):[];
+    if(bay.gen){
+      manual(`Análisis N-1 con el centro de control: verificar que ${other.join(' y ')||'la otra fuente'} asume la carga sin sobrecarga (${fmt(bay.data.tr.s)} MVA por banco en ${String(bay.data.tr.refr||'OFAF').split('/').pop().trim()}). Si no alcanza, redespacho o deslastre de carga antes de seguir.`);
+      if(bay.data.tr.v3) manual(`Terciario ${fmt(bay.data.tr.v3)} kV: transferir los servicios auxiliares que alimenta a la otra fuente y abrir su celda del terciario.`);
+      manual(`Solicitar consignación al centro de control y coordinar por teléfono grabado con el operador de la central (lado ${fmt(bay.data.tr.v2)} kV, fuera del alcance del proyecto).`);}
+    if(sw[p+':CB']) step(p+':CB',false,`Abrir ${code(p+':CB')}${bay.gen?` (lado 115 kV). ${other.join(' y ')||'La otra fuente'} toma la carga`:''}.`);
+    if(bay.gen&&sw[p+':HC']) step(p+':HC',false,`Orden a la central: abrir ${code(p+':HC')} (lado 230 kV). El autotransformador queda desenergizado.`);
+    if(sw[p+':SL']) step(p+':SL',false,`Abrir ${code(p+':SL')}.`);
+    ['S1','S2'].forEach(r=>{if(sw[p+':'+r]) step(p+':'+r,false,`Abrir ${code(p+':'+r)}.`);});
+    if(bay.gen&&sw[p+':HS']) step(p+':HS',false,`Orden a la central: abrir ${code(p+':HS')}. Corte visible en ambos lados.`);
+    if(bay.gen) manual('Bloquear y etiquetar (LOTO) los mandos de los interruptores y seccionadores de ambos lados, y verificar ausencia de tensión con detector en 115 kV y en 230 kV.');
+    if(bay.tipo==='linea'&&bay.fuente) manual(`Coordinar con el centro de control la apertura de la línea en ${bay.data.ln.destino} (extremo remoto).`,()=>{bay.fuente=false;build();log(`Extremo remoto de ${p} abierto`,'info');});
+    step(p+':ET',true,`Cerrar ${code(p+':ET')}.${bay.gen?' Lado 115 kV aterrizado.':' La bahía queda aterrizada y lista para el trabajo.'}`);
+    if(bay.gen) step(p+':HE',true,`Orden a la central: cerrar ${code(p+':HE')}. El autotransformador queda aterrizado en ambos lados y listo para el trabajo.`);
+  }
+  const P={title:S.title||`${PROCS[kind]} · ${p}`,steps:S,i:0}; return P;
+}
+
+/* ---------- Unifilar ---------- */
+function renderSVG(st){
+  const fc=!!state.fc, M=fc?iedMeas():null, RED='#d32f2f', GRN='#2e9d4a';
+  const c=T.c, BW=150, X0=96, n=T.all.length, W=X0+n*BW+90, anyGen=state.bays.some(b=>b.gen), H=anyGen?(fc?670:615):(fc?560:510);
+  const yB1=46, yB2=88, yBT=360, cen={};
+  const col=nd=>st.ea.has(nd)?'var(--earth)':st.en.has(nd)?(fc?RED:'var(--energ)'):(fc?GRN:'var(--dead)');
+  const swc=cl=>fc?'var(--ink)':cl?'var(--closed)':'var(--open)';
+  const n1=v=>fmt(Math.abs(v),1), fl=[];
+  const flow=(pts,rev,P)=>{if(!fc||Math.abs(P)<.05) return;const q=rev?[...pts].reverse():pts;fl.push(`<polyline points="${q.map(p=>p.join(',')).join(' ')}" fill="none" stroke="#ffc400" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" class="flow" pointer-events="none"/>`);};
+  const vals=(x,y,r,ar=true)=>fc&&r?`<text class="fcv" x="${x}" y="${y}" text-anchor="middle" style="fill:var(--ink)">${ar&&Math.abs(r.P)>.05?(r.P>0?'▲ ':'▼ '):''}P ${n1(r.P)} MW</text><text class="fcv" x="${x}" y="${y+14}" text-anchor="middle" style="fill:var(--muted)">Q ${n1(r.Q)} Mvar</text><text class="fcv" x="${x}" y="${y+28}" text-anchor="middle" style="fill:var(--muted)">I ${fmt(r.V?Math.hypot(r.P,r.Q)*1000/(Math.sqrt(3)*r.V):r.I,0)} A</text>`:'';
+  const sw2=nd=>st.en.has(nd)||st.ea.has(nd)?3:2;
+  const L=(x1,y1,x2,y2,nd,gap)=>(gap?`<line x1="${x1}" y1="${gap-7}" x2="${x2}" y2="${gap+7}" stroke="var(--panel)" stroke-width="9"/>`:'')+`<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${col(nd)}" stroke-width="${sw2(nd)}" stroke-linecap="round"/>`;
+  const dot=(x,y,nd)=>`<circle cx="${x}" cy="${y}" r="3.2" fill="${col(nd)}"/>`;
+  const ds=(id,x,y1,y2,lab='right')=>{const cl=state.sw[id],k=swc(cl);cen[id]={x,y:(y1+y2)/2};
+    const blade=cl?`<line x1="${x}" y1="${y2}" x2="${x}" y2="${y1}" stroke="${k}" stroke-width="3" stroke-linecap="round"/>`:`<line x1="${x}" y1="${y2}" x2="${x-11}" y2="${y1+3}" stroke="${k}" stroke-width="3" stroke-linecap="round"/>`;
+    const tx=lab==='right'?x+8:x-8, an=lab==='right'?'start':'end';
+    return `<g class="el" data-el="${id}" tabindex="0" role="button" aria-label="${esc(T.byId[id].code)} ${cl?'cerrado':'abierto'}"><rect class="hit" x="${x-16}" y="${y1-4}" width="32" height="${y2-y1+8}" fill="transparent" rx="3"/><line x1="${x-5}" y1="${y1}" x2="${x+5}" y2="${y1}" stroke="${k}" stroke-width="2"/>${blade}<circle cx="${x}" cy="${y2}" r="2.6" fill="${k}"/><text class="code" x="${tx}" y="${(y1+y2)/2+3}" text-anchor="${an}">${esc(T.byId[id].code)}</text></g>`;};
+  const cbk=(id,x,y,lab='right')=>{const cl=state.sw[id],k=swc(cl);cen[id]={x,y};
+    const tx=lab==='right'?x+14:x-14, an=lab==='right'?'start':'end', ty=lab==='below'?y+22:y+3;
+    return `<g class="el" data-el="${id}" tabindex="0" role="button" aria-label="${esc(T.byId[id].code)} ${cl?'cerrado':'abierto'}"><rect class="hit" x="${x-16}" y="${y-16}" width="32" height="32" fill="transparent" rx="3"/><rect x="${x-9}" y="${y-9}" width="18" height="18" rx="2" fill="${k}" ${cl?'':'fill-opacity=".18"'} stroke="${k}" stroke-width="2"/><text class="code" x="${lab==='below'?x:tx}" y="${ty}" text-anchor="${lab==='below'?'middle':an}">${esc(T.byId[id].code)}</text></g>`;};
+  const ctSym=(x,y)=>`<circle cx="${x}" cy="${y-4}" r="5" fill="none" stroke="var(--muted)" stroke-width="1.3"/><circle cx="${x}" cy="${y+4}" r="5" fill="none" stroke="var(--muted)" stroke-width="1.3"/>`;
+  const gnd=(x,y)=>`<line x1="${x-8}" y1="${y}" x2="${x+8}" y2="${y}" stroke="var(--muted)" stroke-width="1.6"/><line x1="${x-5}" y1="${y+4}" x2="${x+5}" y2="${y+4}" stroke="var(--muted)" stroke-width="1.4"/><line x1="${x-2}" y1="${y+8}" x2="${x+2}" y2="${y+8}" stroke="var(--muted)" stroke-width="1.2"/>`;
+  const arr=(x,y)=>`<line x1="${x}" y1="${y}" x2="${x}" y2="${y+6}" stroke="var(--muted)" stroke-width="1.5"/><rect x="${x-5}" y="${y+6}" width="10" height="18" fill="none" stroke="var(--muted)" stroke-width="1.4"/><path d="M${x} ${y+9} L${x} ${y+20} M${x-2.5} ${y+16} L${x} ${y+20} L${x+2.5} ${y+16}" fill="none" stroke="var(--muted)" stroke-width="1.2"/><line x1="${x}" y1="${y+24}" x2="${x}" y2="${y+30}" stroke="var(--muted)" stroke-width="1.5"/>${gnd(x,y+30)}<text class="code" x="${x-9}" y="${y+18}" text-anchor="end">DPS</text>`;
+  const vtB=(x,y,dir,nd,lab)=>`<line x1="${x}" y1="${y}" x2="${x}" y2="${y+dir*9}" stroke="${col(nd)}" stroke-width="2"/>${dot(x,y,nd)}<circle cx="${x}" cy="${y+dir*14}" r="5" fill="none" stroke="var(--muted)" stroke-width="1.3"/><circle cx="${x}" cy="${y+dir*22}" r="5" fill="none" stroke="var(--muted)" stroke-width="1.3"/><text class="code" x="${x+9}" y="${y+dir*18+3}">${lab}</text>`;
+  let s='';
+  // barras
+  const busLine=(y,nd,lab,sub)=>`<line x1="${X0-20}" y1="${y}" x2="${W-14}" y2="${y}" stroke="${col(nd)}" stroke-width="${st.en.has(nd)?5:4}" stroke-linecap="round"/><text x="${X0-26}" y="${y+5}" text-anchor="end" font-size="15" font-weight="700">${lab}</text>${sub?`<text x="${X0-26}" y="${y+18}" text-anchor="end" font-size="10.5" style="fill:var(--muted)">${sub}</text>`:''}${fc?`<text class="fcv" x="${X0-26}" y="${y+(sub?31:18)}" text-anchor="end" style="fill:${st.en.has(nd)?RED:GRN}">${st.en.has(nd)?'115,6 kV':'0 kV'}</text>`:''}`;
+  let bg='';
+  T.all.forEach((id,i)=>{
+    const cx=X0+i*BW+BW/2;
+    if(T.res.includes(id)){
+      bg+=`<rect x="${cx-BW/2+14}" y="${yB1+14}" width="${BW-28}" height="${440-yB1-14}" rx="6" fill="none" stroke="var(--muted)" stroke-opacity=".6" stroke-dasharray="5 4"/><text x="${cx}" y="${250}" text-anchor="middle" font-size="13" font-weight="600" style="fill:var(--muted)">${id}</text><text x="${cx}" y="${268}" text-anchor="middle" font-size="12" style="fill:var(--muted)">Reserva (futura)</text>`;
+      bg+=`<text x="${cx}" y="${466}" text-anchor="middle" font-size="14" font-weight="700" style="fill:var(--muted)">${id}</text><text x="${cx}" y="${482}" text-anchor="middle" font-size="12" style="fill:var(--muted)">Bahía de reserva</text>`;
+      return;
+    }
+    if(id==='AC'){
+      const x1=cx-20,x2=cx+20;
+      bg+=L(x1,yB1,x1,104,'B1',yB2)+dot(x1,yB1,'B1')+ds('AC:S1',x1,104,126,'left')+L(x1,126,x1,176,'AC.a')+L(x1,176,cx-10,176,'AC.a');
+      bg+=cbk('AC:CB',cx,176,'below')+L(cx+10,176,x2,176,'AC.b')+L(x2,176,x2,132,'AC.b')+ds('AC:S2',x2,110,132)+L(x2,110,x2,yB2,'B2')+dot(x2,yB2,'B2');
+      bg=`<rect x="${cx-BW/2+8}" y="${yB1-30}" width="${BW-16}" height="${232-yB1+42}" rx="6" fill="var(--accent)" fill-opacity=".07" stroke="var(--accent)" stroke-opacity=".35" stroke-dasharray="4 3"/><text x="${cx}" y="${yB1-14}" text-anchor="middle" font-size="12" font-weight="700" style="fill:var(--accent)">ACOPLE B1–B2</text>`+bg;
+      bg+=`<text x="${cx}" y="${232}" text-anchor="middle" font-size="14" font-weight="600">Acople</text>`+vals(cx,252,M&&M.AC,false);
+      if(M) flow([[x1,yB1],[x1,176],[x2,176],[x2,yB2]],M.AC.P<0,M.AC.P);
+      return;
+    }
+    let legTop;
+    if(c.b2){const x1=cx-16,x2=cx+16;
+      bg+=L(x1,yB1,x1,104,'B1',yB2)+dot(x1,yB1,'B1')+ds(id+':S1',x1,104,126,'left')+L(x1,126,x1,146,id+'.a');
+      bg+=L(x2,yB2,x2,104,'B2')+dot(x2,yB2,'B2')+ds(id+':S2',x2,104,126)+L(x2,126,x2,146,id+'.a');
+      bg+=L(x1,146,x2,146,id+'.a')+L(cx,146,cx,166,id+'.a');
+    } else {bg+=L(cx,yB1,cx,104,'B1')+dot(cx,yB1,'B1')+ds(id+':S1',cx,104,126)+L(cx,126,cx,166,id+'.a');}
+    if(id==='AT'){
+      bg+=cbk('AT:CB',cx,175)+L(cx,184,cx,326,'AT.b')+ctSym(cx-0,205)+ds('AT:ST',cx,326,348)+L(cx,348,cx,yBT,'BT')+dot(cx,yBT,'BT');
+      if(T.comb){const xa=cx+34;bg+=L(cx,250,xa,250,'AT.b')+dot(cx,250,'AT.b')+L(xa,250,xa,152,'AT.b')+ds('AT:SA',xa,130,152)+L(xa,130,xa,yB2,'B2')+dot(xa,yB2,'B2');}
+      bg+=`<text x="${cx}" y="${yBT+30}" text-anchor="middle" font-size="14" font-weight="600">${T.comb?'Acople-transferencia':'Transferencia'}</text>`;
+      if(M&&T.comb&&state.sw['AT:SA']&&Math.abs(M.AT.P)>.05){bg+=vals(cx,yBT+68,M.AT);flow([[cx-16,yB1],[cx-16,146],[cx,146],[cx,250],[cx+34,250],[cx+34,yB2]],M.AT.P<0,M.AT.P);}
+      else if(M&&Math.abs(M.AT.P)>.05){const sx=state.sw['AT:S2']&&!state.sw['AT:S1']?cx+16:cx-16,sy=sx>cx?yB2:yB1;bg+=vals(cx,yBT+68,M.AT);flow(c.b2?[[sx,sy],[sx,146],[cx,146],[cx,yBT]]:[[cx,yB1],[cx,yBT]],M.AT.P>0,M.AT.P);}
+      {const pk=Object.keys(state.prot||{});bg+=`<text x="${cx}" y="${yBT+48}" text-anchor="middle" font-size="11.5" style="fill:${pk.length?'var(--warn)':'var(--muted)'}">${pk.length?'Protección de '+esc(pk.join(', '))+' → 52-AT':'43T en Normal'}</text>`;}
+      return;
+    }
+    const b=bayOf(id), x=id+'.x';
+    if(M&&M[id]&&M[id].on){const r=M[id],end=b.tipo==='linea'?430:430;
+      if(r.via==='BT') flow([[cx+38,yBT],[cx+38,322],[cx,322],[cx,end]],r.P>0,r.P);
+      else {const bx=c.b2?(r.via==='B2'?cx+16:cx-16):cx,by=r.via==='B2'?yB2:yB1;flow(c.b2?[[bx,by],[bx,146],[cx,146],[cx,end]]:[[cx,yB1],[cx,end]],r.P>0,r.P);}
+      if(b.gen&&r.P>0.05) flow([[cx,560],[cx,467]],false,r.P);
+      bg+=vals(cx,b.gen?620:515,r);}
+    bg+=cbk(id+':CB',cx,175)+L(cx,184,cx,222,id+'.b')+ctSym(cx,202)+ds(id+':SL',cx,222,244)+L(cx,244,cx,430,x,c.bt?yBT:0);
+    bg+=L(cx,386,cx-26,386,x)+dot(cx,386,x)+arr(cx-26,386);
+    bg+=L(cx,266,cx+24,266,x)+ds(id+':ET',cx+24,266,288)+gnd(cx+24,292);
+    bg+=L(cx,302,cx-22,302,x)+`<circle cx="${cx-22}" cy="${308}" r="5" fill="none" stroke="var(--muted)" stroke-width="1.3"/><circle cx="${cx-22}" cy="${316}" r="5" fill="none" stroke="var(--muted)" stroke-width="1.3"/>`;
+    if(c.bt) bg+=L(cx,322,cx+38,322,x)+ds(id+':ST',cx+38,322,346)+L(cx+38,346,cx+38,yBT,'BT')+dot(cx+38,yBT,'BT')+dot(cx,322,x);
+    if(b.tipo==='linea'){
+      if(b.data.wt?.on) bg+=`<rect x="${cx-7}" y="404" width="14" height="20" rx="2" fill="var(--panel)" stroke="var(--ink)" stroke-width="1.4"/><path d="M${cx} 406 q6 2.5 0 5 q-6 2.5 0 5 q6 2.5 0 5" fill="none" stroke="var(--ink)" stroke-width="1.2"/><text class="code" x="${cx+11}" y="418">TO</text>`;
+      bg+=`<path d="M${cx-7} ${430} L${cx} ${444} L${cx+7} ${430}" fill="none" stroke="${col(x)}" stroke-width="2"/>`;
+      bg+=`<text x="${cx}" y="${466}" text-anchor="middle" font-size="14" font-weight="700">${esc(id)}</text><text x="${cx}" y="${482}" text-anchor="middle" font-size="12" fill="var(--muted)" style="fill:var(--muted)">${esc(b.data.ln.destino)}</text>`;
+    } else {
+      if(b.gen){const h=id+'.h',hb=id+'.hb',C='C:'+id,yC=560;
+        bg+=`<circle cx="${cx}" cy="${441}" r="11" fill="none" stroke="${col(x)}" stroke-width="2"/><circle cx="${cx}" cy="${456}" r="11" fill="none" stroke="${col(h)}" stroke-width="2"/>`;
+        bg+=`<rect x="${cx-BW/2+8}" y="470" width="${BW-16}" height="${yC-470+22}" rx="6" fill="var(--warn)" fill-opacity=".06" stroke="var(--warn)" stroke-opacity=".6" stroke-dasharray="5 4"/><text x="${cx-BW/2+14}" y="${yC+16}" font-size="10" style="fill:var(--warn)">Central ${fmt(b.data.tr.v2)} kV · fuera del alcance</text>`;
+        bg+=L(cx,467,cx,484,h)+L(cx,476,cx+28,476,h)+dot(cx,476,h)+ds(id+':HE',cx+28,476,498)+gnd(cx+28,502);
+        bg+=ds(id+':HS',cx,484,506,'left')+L(cx,506,cx,518,hb)+cbk(id+':HC',cx,527,'left')+L(cx,536,cx,yC,C)+dot(cx,yC,C)+`<line x1="${cx-34}" y1="${yC}" x2="${cx+34}" y2="${yC}" stroke="${col(C)}" stroke-width="4" stroke-linecap="round"/>`;
+        bg+=`<text x="${cx+18}" y="${446}" font-size="14" font-weight="700">${esc(id)}</text><text x="${cx}" y="${yC+36}" text-anchor="middle" font-size="12" style="fill:var(--muted)">${fmt(b.data.tr.s)} MVA · ${trV(b.data.tr)} kV</text>`;
+      } else {
+      bg+=`<circle cx="${cx}" cy="${441}" r="11" fill="none" stroke="${col(x)}" stroke-width="2"/><circle cx="${cx}" cy="${456}" r="11" fill="none" stroke="var(--dead)" stroke-width="2"/>`;
+      bg+=`<text x="${cx+18}" y="${446}" font-size="14" font-weight="700">${esc(id)}</text><text x="${cx}" y="${482}" text-anchor="middle" font-size="12" style="fill:var(--muted)">${fmt(b.data.tr.s)} MVA</text><text x="${cx}" y="${496}" text-anchor="middle" font-size="12" style="fill:var(--muted)">${trV(b.data.tr)} kV</text>`;}
+    }
+  });
+  s+=busLine(yB1,'B1',c.b2?'B1':'BP',c.b2?'principal':'');
+  if(c.b2) s+=busLine(yB2,'B2','B2','reserva');
+  if(c.bt) s+=busLine(yBT,'BT','BT','transferencia');
+  s+=vtB(W-56,yB1,-1,'B1',c.b2?'TP B1':'TP BP'); if(c.b2) s+=vtB(W-56,yB2,1,'B2','TP B2');
+  // dibujar barras primero y luego bahías encima, salvo los cruces que necesitan "salto"
+  s=s+bg+fl.join('');
+  // resaltes
+  const nx=proc&&proc.steps[proc.i]&&!proc.steps[proc.i].manual?proc.steps[proc.i].id:null;
+  if(nx&&cen[nx]) s+=`<circle class="pulse" cx="${cen[nx].x}" cy="${cen[nx].y}" r="20" fill="none" stroke="var(--accent)" stroke-width="2.5" pointer-events="none"/>`;
+  if(selected&&cen[selected]) s+=`<rect x="${cen[selected].x-19}" y="${cen[selected].y-19}" width="38" height="38" rx="4" fill="none" stroke="var(--accent)" stroke-dasharray="4 3" stroke-width="1.5" pointer-events="none"/>`;
+  if(acc&&cen[acc.el]){const p=cen[acc.el];
+    if(acc.boom){const an=(a,b,d)=>`<animate attributeName="r" values="${a};${b}" dur="${d}s" repeatCount="3"/><animate attributeName="opacity" values="1;0" dur="${d}s" repeatCount="3"/>`;
+      s+=`<g pointer-events="none"><circle cx="${p.x}" cy="${p.y}" r="6" fill="#ffd34d">${an(6,46,.9)}</circle><circle cx="${p.x}" cy="${p.y}" r="4" fill="#ff7a1a">${an(4,30,.7)}</circle>
+        <path d="M${p.x} ${p.y-22} L${p.x+6} ${p.y-6} L${p.x+22} ${p.y-8} L${p.x+9} ${p.y+3} L${p.x+16} ${p.y+20} L${p.x} ${p.y+9} L${p.x-16} ${p.y+20} L${p.x-9} ${p.y+3} L${p.x-22} ${p.y-8} L${p.x-6} ${p.y-6} Z" fill="#ff9f1a" stroke="#c62828" stroke-width="1.5" opacity=".9"/>
+        <text x="${p.x+26}" y="${p.y-14}" font-size="13" font-weight="700" style="fill:#c62828">ARCO</text></g>`;}
+    else s+=`<g pointer-events="none"><circle cx="${p.x}" cy="${p.y}" r="18" fill="none" stroke="var(--warn)" stroke-width="3" stroke-dasharray="4 3"/><text x="${p.x+22}" y="${p.y-12}" font-size="13" font-weight="700" style="fill:var(--warn)">¡RIESGO!</text></g>`;
+    acc.trips.forEach(id=>{const q=cen[id];if(q) s+=`<g pointer-events="none"><rect x="${q.x-15}" y="${q.y-15}" width="30" height="30" rx="4" fill="none" stroke="#c62828" stroke-width="2.5"/><text x="${q.x}" y="${q.y-19}" text-anchor="middle" font-size="11" font-weight="700" style="fill:#c62828">DISPARO</text></g>`;});}
+  const svg=$('#sld'); svg.setAttribute('viewBox',`0 0 ${W} ${H}`); svg.setAttribute('width',W); svg.style.maxWidth=W*1.25+'px'; svg.innerHTML=s;
+}
+
+/* ---------- Columna lateral ---------- */
+function renderSide(st){
+  const sw=state.sw;
+  // seleccionado
+  const sc=$('#selCard');
+  if(!selected||!T.byId[selected]){sc.innerHTML=`<h2>Equipo seleccionado</h2><p class="hint" style="margin:0">Toque un equipo en el unifilar o en el patio 3D. Pase a <b>Inspeccionar</b> para ver datos sin maniobrar.</p>`;}
+  else{
+    const el=T.byId[selected], cl=sw[selected], d=dataOf(el.bay), r=canOperate(el);
+    let kv='';
+    if(el.kind==='cb'&&d.cb) kv=`<dt>Tipo</dt><dd>${esc(d.cb.tipo)}</dd><dt>Asignada</dt><dd>${fmt(d.cb.un)} kV · ${fmt(d.cb.in,0)} A</dd><dt>Poder de corte</dt><dd>${fmt(d.cb.icc)} kA</dd><dt>Mecanismo</dt><dd>${esc(d.cb.mando)}</dd>`;
+    else if(d.ds) kv=`<dt>Tipo</dt><dd>${esc(el.kind==='es'?'Cuchilla de tierra':(el.role==='SL'?d.ds.tipoL:d.ds.tipoB))}</dd><dt>Asignada</dt><dd>${fmt(d.ds.un)} kV · ${fmt(d.ds.in,0)} A</dd><dt>Corta duración</dt><dd>${fmt(d.ds.ik)} kA, 1 s</dd><dt>Accionamiento</dt><dd>${esc(d.ds.mando)}</dd>`;
+    if(d.ct&&el.kind==='cb') kv+=`<dt>TC asociado</dt><dd>${esc(d.ct.rel)} A</dd>`;
+    const bay=bayOf(el.bay);
+    sc.innerHTML=`<h2>Equipo seleccionado</h2>
+      <div class="row" style="justify-content:space-between"><span class="selcode">${esc(el.code)}</span><span class="chip ${cl?'closed':'open'}">${cl?'Cerrado':'Abierto'}</span></div>
+      <div class="hint">${esc(el.name)} · bahía ${esc(el.bay)}</div>
+      <dl class="kv">${kv}</dl>
+      <div class="check ${r.ok?'':'no'}">${r.ok?`Se puede ${cl?'abrir':'cerrar'}: ningún enclavamiento lo impide.`:esc(r.reason)}</div>
+      <div class="row" style="margin-top:10px"><button class="btn primary" type="button" id="selOp">${cl?'Abrir':'Cerrar'} ${esc(el.code)}</button>
+      ${bay&&(bay.tipo==='linea'||bay.gen)?`<label class="hint row" style="gap:6px"><input type="checkbox" id="remote" ${bay.fuente?'checked':''}> ${bay.tipo==='linea'?'Extremo remoto energizado':`Barra de ${fmt(bay.data.tr.v2)} kV de la central energizada`}</label>`:''}</div>`;
+    if(bay&&T.c.bt){const pt=(state.prot||{})[bay.id]==='AT';sc.insertAdjacentHTML('beforeend',`<div class="row" style="margin-top:8px;gap:8px;align-items:center"><span class="hint">Selector 43T-${esc(bay.id)}: <b>${pt?'Transferencia (dispara 52-AT)':'Normal (dispara 52-'+esc(bay.id)+')'}</b></span><button class="btn sm" type="button" id="protBtn">${pt?'Devolver a Normal':'Pasar a Transferencia'}</button></div>`);
+      $('#protBtn').onclick=()=>{const e=protTo(bay.id,!pt);if(e){toast(e);log(e,'block');}render();};}
+    $('#selOp').onclick=()=>operate(selected);
+    const rm=$('#remote'); if(rm) rm.onchange=()=>{bay.fuente=rm.checked;build();log(bay.tipo==='linea'?`Extremo remoto de ${bay.id} ${bay.fuente?'cerrado (línea energizada)':'abierto'}`:`Lado de ${fmt(bay.data.tr.v2)} kV de ${bay.id} ${bay.fuente?'energizado':'abierto'}`,'info');save();render();};
+  }
+  // barra del acople (siempre visible sobre el unifilar y el 3D)
+  {const bar=$('#acBar');
+   if(!T.c.b2) bar.innerHTML=`<b>Acople</b><span class="hint">Esta configuración tiene una sola barra principal y no lleva acople. Para verlo, escoja arriba una configuración de <b>doble barra (principal y reserva)</b>.</span>`;
+   else {const eq=comp('B1').has('B2');
+     const K=T.comb?'AT':'AC',ids=[K+':S1',K+':CB',T.comb?'AT:SA':'AC:S2'];
+     bar.innerHTML=`<b>Acople B1–B2${T.comb?' · bahía de acople-transferencia':''}</b>${ids.map(id=>`<button class="btn sm" type="button" data-acop="${id}"><span style="font-family:var(--f-mono)">${esc(T.byId[id].code)}</span><span class="chip ${sw[id]?'closed':'open'}">${sw[id]?'Cerrado':'Abierto'}</span></button>`).join('')}<span class="hint">${eq?'Barras equipotenciales: ya puede pasar circuitos.':`Barras separadas: cierre 52-${K} para energizar la reserva.${T.comb&&state.sw['AT:ST']?' Ahora la bahía está haciendo de transferencia.':''}`}</span>`;
+     bar.querySelectorAll('[data-acop]').forEach(b=>b.onclick=()=>{selected=b.dataset.acop;operate(b.dataset.acop);});}}
+  // acople
+  const ac=$('#acCard'); ac.hidden=!T.c.b2;
+  if(T.c.b2){const eq=comp('B1').has('B2');
+    const btn=id=>`<button class="btn sm" type="button" data-acop="${id}" style="justify-content:space-between;display:flex;gap:10px;width:100%"><span style="font-family:var(--f-mono)">${esc(T.byId[id].code)}</span><span class="chip ${sw[id]?'closed':'open'}">${sw[id]?'Cerrado':'Abierto'}</span></button>`;
+    const K=T.comb?'AT':'AC';
+    ac.innerHTML=`<h2>Acople de barras${T.comb?' (bahía de acople-transferencia)':''}</h2><div style="display:flex;flex-direction:column;gap:6px">${btn(K+':S1')}${btn(K+':CB')}${btn(T.comb?'AT:SA':'AC:S2')}</div>
+      <p class="hint" style="margin:8px 0 0">${eq?'Barras principal y de reserva equipotenciales: puede pasar circuitos de una a otra.':`Barras separadas. Cierre 52-${K} para energizar la reserva y equipotencializar antes de pasar circuitos.${T.comb?' El mismo interruptor hace de transferencia, así que no puede cumplir las dos funciones a la vez.':''}`}</p>`;
+    ac.querySelectorAll('[data-acop]').forEach(b=>b.onclick=()=>{selected=b.dataset.acop;operate(b.dataset.acop);});}
+  // procedimiento
+  const pc=$('#procCard'), feeders=state.bays.map(b=>b.id);
+  const avail=Object.entries(PROCS).filter(([k])=>!((k==='transfer'||k==='ret')&&!T.c.bt)&&!((k==='swap'||k==='all')&&!T.c.b2));
+  if(!proc){
+    pc.innerHTML=`<h2>Maniobra guiada</h2><div class="row"><select id="pBay" aria-label="Bahía">${feeders.map(f=>`<option>${esc(f)}</option>`).join('')}</select><select id="pKind" aria-label="Maniobra">${avail.map(([k,v])=>`<option value="${k}">${v}</option>`).join('')}</select></div><div class="row" style="margin-top:8px"><button class="btn primary" type="button" id="pGo">Iniciar</button><span class="hint" id="pErr"></span></div>`;
+    $('#pGo').onclick=()=>{const P=makeProc($('#pKind').value,$('#pBay').value); if(P.error){$('#pErr').textContent=P.error;return;} proc=P; advance(); log(`Inicio: ${P.title}`,'info'); render();};
+  } else {
+    const done=proc.i>=proc.steps.length, cur=proc.steps[proc.i];
+    pc.innerHTML=`<h2>Maniobra guiada</h2><b>${esc(proc.title)}</b><ol>${proc.steps.map((s,i)=>`<li class="${i<proc.i?'done':i===proc.i?'cur':''}">${esc(s.text)}</li>`).join('')}</ol>
+      <div class="row" style="margin-top:10px">${done?`<span class="ok">Maniobra completa.</span>`:cur.manual?`<button class="btn primary" type="button" id="pStep">Marcar como hecho</button>`:`<button class="btn primary" type="button" id="pStep">Ejecutar paso: ${esc(T.byId[cur.id].code)}</button>`}<button class="btn" type="button" id="pX">${done?'Cerrar':'Cancelar'}</button></div>`;
+    $('#pX').onclick=()=>{if(!done) log(`Maniobra cancelada: ${proc.title}`,'info'); proc=null;render();};
+    const ps=$('#pStep'); if(ps) ps.onclick=()=>{ if(cur.manual){cur.done=true; if(cur.act) cur.act(); log(cur.text,'op'); advance(); save(); render();} else {selected=cur.id; operate(cur.id);} };
+  }
+  // estado de bahías
+  const rows=state.bays.map(b=>{const x=b.id+'.x'; let feed=[];
+    if(sw[b.id+':CB']&&sw[b.id+':SL']){ if(sw[b.id+':S1']&&st.en.has('B1')) feed.push(T.c.b2?'B1':'BP'); if(sw[b.id+':S2']&&st.en.has('B2')) feed.push('B2'); }
+    if(sw[b.id+':ST']&&st.en.has('BT')) feed.push('BT (52-AT)');
+    let chip;
+    if(st.ea.has(x)) chip=`<span class="chip earth">Aterrizada</span>`;
+    else if(st.en.has(x)) chip=`<span class="chip en">Energizada</span>`;
+    else chip=`<span class="chip dead">Sin tensión</span>`;
+    const via=feed.length?feed.join(' + '):(st.en.has(x)&&b.fuente?(b.tipo==='linea'?'solo extremo remoto':`solo desde ${fmt(b.data.tr.v2)} kV`):'—');
+    const pt=(state.prot||{})[b.id]==='AT';
+    return `<tr><td class="c">${esc(b.id)}</td><td>${b.tipo==='linea'?'Línea':b.gen?'Autotransformador':'Transformador'}<div class="hint">${esc(via)}${pt?' · <b>protección en 52-AT</b>':''}</div></td><td style="text-align:right">${chip}</td></tr>`;});
+  const busRow=(n,l)=>`<tr><td class="c">${n}</td><td>${l}</td><td style="text-align:right">${st.en.has(n)?'<span class="chip en">Energizada</span>':'<span class="chip dead">Sin tensión</span>'}</td></tr>`;
+  $('#stTable').innerHTML=busRow('B1',T.c.b2?'Barra principal':'Barra principal')+(T.c.b2?busRow('B2','Barra de reserva'):'')+(T.c.bt?busRow('BT','Barra de transferencia'):'')+rows.join('');
+  $('#log').innerHTML=logs.length?logs.map(l=>`<li><time>${l.t}</time><span class="${l.cls}">${esc(l.text)}</span></li>`).join(''):`<li><span class="info">Sin maniobras todavía.</span></li>`;
+}
+
+/* ---------- Datos de equipos ---------- */
+const SCHEMA={
+  cb:{t:'Interruptor (52)',f:[['ref','Fabricante y referencia','text'],['tipo','Tipo','sel',['SF6 tanque vivo','SF6 tanque muerto','Vacío']],['un','Tensión asignada','num','kV'],['in','Corriente asignada','num','A'],['icc','Poder de corte en cortocircuito','num','kA'],['mando','Mecanismo','sel',['Resorte','Hidráulico','Neumático']],['ciclo','Secuencia de operación','text']]},
+  ds:{t:'Seccionadores (89) y cuchilla de tierra (57)',f:[['ref','Fabricante y referencia','text'],['tipoB','Tipo, seccionadores de barra','sel',['Pantógrafo','Semipantógrafo','Apertura central','Doble apertura']],['tipoL','Tipo, seccionador de línea','sel',['Apertura central','Doble apertura','Apertura vertical','Pantógrafo']],['un','Tensión asignada','num','kV'],['in','Corriente asignada','num','A'],['ik','Corriente de corta duración (1 s)','num','kA'],['mando','Accionamiento','sel',['Motor','Manual']]]},
+  ct:{t:'Transformador de corriente (TC)',f:[['rel','Relación','text','A'],['nuc','Núcleos','text'],['va','Carga','num','VA'],['ith','Corriente térmica de corta duración (1 s)','num','kA']]},
+  dps:{t:'Pararrayos / DPS de óxido metálico',f:[['ref','Fabricante y referencia','text'],['ur','Tensión asignada Ur','num','kV'],['uc','Tensión de operación continua Uc (MCOV)','num','kV'],['inom','Corriente nominal de descarga','num','kA'],['clase','Clase (IEC 60099-4)','sel',['SL · estación liviana','SM · estación media','SH · estación pesada','DH · distribución']],['upl','Nivel de protección al rayo Upl (10 kA, 8/20)','num','kV'],['cont','Contador de descargas','sel',['Sí','No']]]},
+  wt:{t:'Trampa de onda',f:[['on','Instalada (comunicación por onda portadora, PLC)','chk'],['l','Inductancia de la bobina principal','num','mH'],['in','Corriente asignada','num','A'],['ik','Corriente de corta duración (1 s)','num','kA'],['banda','Banda de bloqueo','text','kHz'],['fases','Fases equipadas','sel',['2 fases (B y C)','1 fase (B)','3 fases']]]},
+  vt:{t:'Transformador de tensión (TP)',f:[['rel','Relación','text'],['clase','Clase de precisión','text'],['tipo','Tipo','sel',['Capacitivo','Inductivo']]]},
+  tr:{t:'Transformador / autotransformador de potencia',f:[['tipo','Tipo','text'],['fases','Construcción','sel',['3 unidades monofásicas (banco)','Unidad trifásica']],['s','Potencia del banco (máxima)','num','MVA'],['su','Potencia por unidad','text'],['v1','Tensión en esta subestación','num','kV'],['v2','Tensión del otro devanado','num','kV'],['v3','Terciario','num','kV'],['tap','Cambiador de tomas','text'],['ucc','Impedancia de cortocircuito','num','%'],['grupo','Grupo de conexión','text'],['refr','Refrigeración','sel',['ONAN','ONAN/ONAF','OFAF','ONAN/ONAF/OFAF']]]},
+  ln:{t:'Línea',f:[['destino','Subestación remota','text'],['long','Longitud','num','km'],['cond','Conductor','text'],['amp','Capacidad térmica (25 °C)','num','A'],['mva','Carga que alimenta','num','MVA']]},
+};
+const SUBF=[['nombre','Nombre','text'],['un','Tensión nominal','num','kV'],['um','Tensión máxima del equipo (Um)','num','kV'],['icc','Cortocircuito trifásico en barras','num','kA'],['f','Frecuencia','num','Hz'],['inb','Corriente asignada de barras','num','A'],['bcond','Conductor de barras','text'],['ke','Factor de falla a tierra k','num',''],['res','Bahías de reserva (futuras)','num','']];
+let dataSel='SUB', delArm=null;
+const ctPrim=d=>{const m=String(d?.ct?.rel||'').match(/\d+/g);return m?Math.max(...m.slice(0,-1).map(Number).concat(m.length===1?[+m[0]]:[])):NaN;};
+const vtPrim=vt=>{const m=String(vt?.rel||'').replace(/[.\s]/g,'').match(/\d+/);return m?+m[0]:0;};
+function dpsCalc(d){const s=state.sub,U0=s.um/Math.sqrt(3),ke=+s.ke||1.4,ucMin=U0,urTov=ke*U0/1.1,urMin=Math.max(ucMin/0.8,urTov),bil=insCalc().bil;
+  return {ucMin,urTov,urMin,urRec:Math.ceil(urMin/6)*6,bil,mp:bil/(+d.dps.upl||1),inReq:s.um>=420?20:10,ke};}
+function dpsHTML(d){const D=dpsCalc(d);return `Uc mínima <b>${fmt(D.ucMin)} kV</b> (Um/√3). Ur mínima <b>${fmt(D.urMin)} kV</b> por sobretensión temporal de ${fmt(D.ke,2)}·Um/√3 durante 1 s; valor comercial recomendado <b>${D.urRec} kV</b>. Margen de protección BIL ${D.bil} / Upl ${fmt(d.dps.upl,0)} = <b>${fmt(D.mp,2)}</b> (mínimo 1,2).`;}
+function warnings(id){
+  const d=dataOf(id), s=state.sub, w=[]; if(!d) return w;
+  if(d.cb){ if(+d.cb.un<+s.um) w.push(`El interruptor es de ${fmt(d.cb.un)} kV y el equipo de la subestación debe ser de ${fmt(s.um)} kV.`);
+    if(+d.cb.icc<+s.icc) w.push(`El poder de corte del interruptor (${fmt(d.cb.icc)} kA) es menor que el cortocircuito en barras (${fmt(s.icc)} kA).`);}
+  if(d.ds){ if(+d.ds.ik<+s.icc) w.push(`La corriente de corta duración de los seccionadores (${fmt(d.ds.ik)} kA) es menor que el cortocircuito en barras (${fmt(s.icc)} kA).`);
+    if(+d.ds.un<+s.um) w.push(`Los seccionadores son de ${fmt(d.ds.un)} kV, menos que Um = ${fmt(s.um)} kV.`);}
+  if(d.tr){ const In=d.tr.s*1000/(Math.sqrt(3)*d.tr.v1), p=ctPrim(d);
+    if(+d.cb.in<In) w.push(`La corriente asignada del interruptor (${fmt(d.cb.in,0)} A) es menor que la nominal del transformador (${fmt(In,0)} A).`);
+    if(p<In) w.push(`El primario del TC (${fmt(p,0)} A) es menor que la corriente nominal del transformador (${fmt(In,0)} A).`);
+    if(+d.tr.v1!==+s.un) w.push(`La tensión primaria del transformador (${fmt(d.tr.v1)} kV) no coincide con la nominal de la subestación (${fmt(s.un)} kV).`);}
+  if(d.ln){ if(+d.ln.amp>+d.cb.in) w.push(`La línea admite ${fmt(d.ln.amp,0)} A, más que la corriente asignada del interruptor.`);
+    const p=ctPrim(d); if(p<+d.ln.amp) w.push(`El primario máximo del TC (${fmt(p,0)} A) es menor que la capacidad de la línea (${fmt(d.ln.amp,0)} A).`);}
+  if(d.ct&&+d.ct.ith<+s.icc) w.push(`La corriente térmica del TC (${fmt(d.ct.ith)} kA) es menor que el cortocircuito en barras (${fmt(s.icc)} kA).`);
+  if(d.vt){const v=vtPrim(d.vt); if(v&&Math.abs(v/1000-s.un)/s.un>.05) w.push(`El primario del TP (${fmt(v/1000)} kV) no corresponde a la tensión nominal (${fmt(s.un)} kV).`);
+    if(d.wt?.on&&d.vt.tipo!=='Capacitivo') w.push('Con trampa de onda el TP de línea debe ser capacitivo, porque por él se acopla la señal de onda portadora.');}
+  if(d.wt?.on){ if(+d.wt.in<+d.ln.amp) w.push(`La corriente asignada de la trampa de onda (${fmt(d.wt.in,0)} A) es menor que la capacidad de la línea (${fmt(d.ln.amp,0)} A).`);
+    if(+d.wt.ik<+s.icc) w.push(`La trampa de onda soporta ${fmt(d.wt.ik)} kA y el cortocircuito es de ${fmt(s.icc)} kA.`);}
+  if(d.dps){const D=dpsCalc(d);
+    if(+d.dps.uc<D.ucMin) w.push(`La Uc del DPS (${fmt(d.dps.uc)} kV) es menor que Um/√3 = ${fmt(D.ucMin)} kV.`);
+    if(+d.dps.ur<D.urMin) w.push(`La Ur del DPS (${fmt(d.dps.ur)} kV) es menor que la mínima por sobretensión temporal (${fmt(D.urMin)} kV).`);
+    if(D.mp<1.2) w.push(`El margen de protección BIL/Upl es ${fmt(D.mp,2)}, menor que 1,2. Busque un DPS con menor Upl.`);
+    if(+d.dps.inom<D.inReq) w.push(`Para Um = ${fmt(s.um)} kV se recomienda corriente nominal de descarga de ${D.inReq} kA.`);}
+  return w;
+}
+function fieldHTML(path,[k,label,type,extra],obj){
+  const id='f-'+path.replace(/\|/g,'-')+'-'+k, v=obj[k]??'';
+  let inp;
+  if(type==='chk') return `<label class="fld" for="${id}" style="flex-direction:row;align-items:center;gap:8px;grid-column:1/-1"><input id="${id}" type="checkbox" data-path="${path}|${k}" data-chk="1" ${v?'checked':''}><span style="color:var(--ink)">${esc(label)}</span></label>`;
+  if(type==='sel') inp=`<select id="${id}" data-path="${path}|${k}">${extra.map(o=>`<option ${o===v?'selected':''}>${esc(o)}</option>`).join('')}</select>`;
+  else inp=`<div class="u"><input id="${id}" data-path="${path}|${k}" data-num="${type==='num'?1:''}" type="${type==='num'?'number':'text'}" step="any" value="${esc(v)}">${extra&&type!=='sel'?`<em>${esc(extra)}</em>`:''}</div>`;
+  return `<label class="fld" for="${id}"><span>${esc(label)}</span>${inp}</label>`;
+}
+function trV(t){const v=[t.v1,t.v2,t.v3].filter(x=>x!==''&&x!=null).sort((a,b)=>b-a);return v.map(x=>fmt(x)).join('/');}
+function gxCount(){const n=T.all.length;let k=0;for(let i=0;i<=n;i++) if(i%2===0||i===n) k++;return k;}
+function inventory(){const c=T.c,nb=state.bays.length,lines=state.bays.filter(b=>b.tipo==='linea'),cnt=k=>T.els.filter(e=>e.kind===k).length;
+  const buses=1+(c.b2?1:0), strings=gxCount()*3*(buses+(c.bt?1:0))+lines.length*3, ni=insCalc().n, g=gridCalc();
+  const wt=lines.filter(b=>b.data.wt?.on).reduce((a,b)=>a+(b.data.wt.fases.startsWith('3')?3:b.data.wt.fases.startsWith('1')?1:2),0);
+  return [['Interruptores de potencia (52)',cnt('cb'),'tripolares, uno por bahía'],['Seccionadores (89)',cnt('ds'),'tripolares'],['Cuchillas de puesta a tierra (57)',cnt('es'),'tripolares'],
+   ['Transformadores de corriente (TC)',3*(nb+(c.b2?1:0)+(c.bt?1:0)),'monofásicos'],['Transformadores de tensión de bahía',3*nb,'monofásicos'],['Transformadores de tensión de barra',3*buses,`monofásicos, ${state.busvt.tipo.toLowerCase()}s`],
+   ['Pararrayos / DPS',3*nb,'monofásicos, en la llegada de cada línea y transformador'],['Trampas de onda',wt,'monofásicas, solo líneas con PLC'],['Transformadores de potencia',nb-lines.length,''],
+   ['Cadenas de aisladores de suspensión',strings,isPol()?`${strings*ni} aisladores poliméricos Siemens ${P3FL.ref} (${ni} por cadena, ${fmt(state.ins.esp,0)} mm)`:`${strings*ni} discos (${ni} por cadena)`],['Conductor de la malla de tierra',g.err?'—':`${fmt(g.LC,0)} m`,g.err?'':`${g.size[0]}, más ${g.nr} varillas`]];}
+function renderData(){renderBlist();renderForm();}
+function renderBlist(){
+  const items=[['SUB','Subestación',`${fmt(state.sub.un)} kV`],...T.order.map(id=>[id,id,id==='AC'?'Acople':id==='AT'?(T.comb?'Acople-transf.':'Transferencia'):bayOf(id).tipo==='linea'?'Línea':'Transformador'])];
+  if(dataSel!=='SUB'&&!dataOf(dataSel)) dataSel='SUB';
+  $('#blist').innerHTML=items.map(([id,l,s])=>`<button type="button" class="b" data-sel="${id}" aria-current="${dataSel===id}"><span><b>${esc(l)}</b> <small>${esc(s)}</small></span>${id!=='SUB'&&warnings(id).length?'<span class="warnmark" title="Hay advertencias">!</span>':''}</button>`).join('')
+   +`<div class="row" style="margin-top:8px"><button class="btn sm" type="button" id="addL">+ Línea</button><button class="btn sm" type="button" id="addT">+ Transformador</button></div>`;
+  document.querySelectorAll('#blist [data-sel]').forEach(b=>b.onclick=()=>{dataSel=b.dataset.sel;delArm=null;renderData();});
+  $('#addL').onclick=()=>addBay('linea'); $('#addT').onclick=()=>addBay('trafo');
+}
+function renderForm(){
+  const f=$('#form');
+  if(dataSel==='SUB'){
+    f.innerHTML=`<h3>${esc(state.sub.nombre)}</h3><fieldset><legend>Datos generales</legend><div class="grid">${SUBF.map(x=>fieldHTML('SUB|sub',x,state.sub)).join('')}</div></fieldset>
+    <p class="note">Configuración actual: <b>${esc(T.c.name)}</b>. Estos valores se usan para revisar los equipos de cada bahía (tensión máxima, cortocircuito y sobretensiones). Los datos de ejemplo son valores típicos de 115 kV; reemplácelos por los suyos.</p>
+    <fieldset><legend>Transformadores de tensión de barra</legend><div class="grid">${SCHEMA.vt.f.map(x=>fieldHTML('BUSVT|busvt',x,state.busvt)).join('')}</div></fieldset>
+    <fieldset><legend>Lista de equipos de la subestación</legend><table class="ct inv"><tbody>${inventory().map(([a,b,c])=>`<tr><td>${esc(a)}</td><td>${esc(c)}</td><td><b>${esc(b)}</b></td></tr>`).join('')}</tbody></table></fieldset>`;
+  } else {
+    const d=dataOf(dataSel), bay=bayOf(dataSel), w=warnings(dataSel);
+    const title=dataSel==='AC'?'Bahía de acople':dataSel==='AT'?(T.comb?'Bahía de acople-transferencia':'Bahía de transferencia'):bay.tipo==='linea'?`Bahía de línea ${dataSel}`:`Bahía de transformador ${dataSel}`;
+    let calc='';
+    if(d.tr){const In=d.tr.s*1000/(Math.sqrt(3)*d.tr.v1), In2=d.tr.s*1000/(Math.sqrt(3)*d.tr.v2);
+      calc=`<p class="calc">Corriente nominal: <b>${fmt(In,1)} A</b> en ${fmt(d.tr.v1)} kV y <b>${fmt(In2,0)} A</b> en ${fmt(d.tr.v2)} kV.</p>`;}
+    const order=['ln','tr','wt','dps','cb','ds','ct','vt'].filter(k=>d[k]);
+    f.innerHTML=`<div class="row" style="justify-content:space-between"><h3>${esc(title)}</h3>${bay?`<button class="btn sm" type="button" id="delBay">${delArm===dataSel?'Confirmar: quitar '+esc(dataSel):'Quitar bahía'}</button>`:''}</div>
+      ${w.length?`<ul class="warns">${w.map(x=>`<li>${esc(x)}</li>`).join('')}</ul>`:`<p class="ok" style="margin:0">Sin advertencias frente a los datos de la subestación.</p>`}
+      ${order.map(k=>`<fieldset><legend>${SCHEMA[k].t}</legend><div class="grid">${SCHEMA[k].f.map(x=>fieldHTML(dataSel+'|'+k,x,d[k])).join('')}</div>${k==='tr'?calc:''}${k==='dps'?`<p class="calc calc-dps">${dpsHTML(d)}</p>`:''}</fieldset>`).join('')}`;
+    const db=$('#delBay'); if(db) db.onclick=()=>{ if(delArm!==dataSel){delArm=dataSel;renderData();return;}
+      state.bays=state.bays.filter(b=>b.id!==dataSel); log(`Bahía ${dataSel} retirada`,'info'); delArm=null; dataSel='SUB'; topoChanged(); };
+  }
+}
+function addBay(tipo){
+  const pre=tipo==='linea'?'L':'T'; let n=1; while(bayOf(pre+n)) n++;
+  const b=makeBay(pre+n,tipo,'S/E nueva'); b.fuente=false; state.bays.push(b); dataSel=b.id; log(`Bahía ${b.id} agregada (todo abierto)`,'info'); topoChanged();
+}
+$('#form').addEventListener('input',e=>{
+  const t=e.target, p=t.dataset.path; if(!p) return;
+  const [bid,eq,k]=p.split('|'); const obj=bid==='SUB'?state.sub:bid==='BUSVT'?state.busvt:dataOf(bid)[eq];
+  obj[k]=t.dataset.chk?t.checked:t.dataset.num?(t.value===''?'':parseFloat(t.value)):t.value; save();
+  if(bid!=='SUB'&&bid!=='BUSVT'){const c=$('#form .calc-dps'); if(c) c.innerHTML=dpsHTML(dataOf(bid));}
+  const w=dataSel==='SUB'?[]:warnings(dataSel), box=$('#form .warns')||$('#form .ok');
+  if(box&&dataSel!=='SUB'){ box.outerHTML=w.length?`<ul class="warns">${w.map(x=>`<li>${esc(x)}</li>`).join('')}</ul>`:`<p class="ok" style="margin:0">Sin advertencias frente a los datos de la subestación.</p>`; }
+  if(eq==='tr'){const d=dataOf(bid), c=$('#form .calc'); if(c){const In=d.tr.s*1000/(Math.sqrt(3)*d.tr.v1),In2=d.tr.s*1000/(Math.sqrt(3)*d.tr.v2);c.innerHTML=`Corriente nominal: <b>${fmt(In,1)} A</b> en ${fmt(d.tr.v1)} kV y <b>${fmt(In2,0)} A</b> en ${fmt(d.tr.v2)} kV.`;}}
+  if(bid==='SUB'&&k==='res'){topoChanged();return;}
+  renderBlist(); if(k==='nombre') $('#form h3').textContent=state.sub.nombre;
+  dirty3D=true; headerName(); const st=status(); renderSVG(st); renderSide(st);
+});
+function headerName(){$('#subName').textContent=`${state.sub.nombre} ${fmt(state.sub.un)} kV`;}
+
+/* ---------- Patio 3D ---------- */
+let three=null, dirty3D=true;
+const PH=[-2.11,0,2.11], Z={B1:0,B2:9,AC:4.5,CB:12.5,CT:15,SL1:17.5,SL2:19,TP:21,BT:26,EXIT:31.5}, YT=4.3, YB=7.5, HS=2.5;
+/* Grupo 2: fases a 2,11 m en barras y derivaciones; semiancho de pórtico 4,4 m = 2,11 + 1,95 (fase–estructura flexible) + 0,3 de columna */
+const KB=()=>1, GW=()=>4.4;
+/* valores de diseño de los Grupos 1 y 2 (capa de cotas 3D); los adoptados se redondean hacia arriba */
+const DES={dft:1.10,vb:1.21,dff:1.30,dflex:2.11,dfs:1.95,pc:3.46,p:3.50,dh:3.00,dv:2.50,hs:3.60,hb:6.54,ham:7.50,fl:.66,hl:6.00,veh:4.0,T:1.91,hvc:5.91,hv:6.00,R:4.0,R230:4.7,hc:2.5,bil:550,pf:230,dps:'Siemens 3EL2 096-2PJ3',upl:226,ldps:28.6,wmin:8.12};
+const GC={};
+const geo=(k,f)=>GC[k]||(GC[k]=f());
+function init3D(){
+  const box=$('#view3d');
+  if(!window.THREE||!THREE.OrbitControls){$('#msg3d').textContent='No se pudo cargar la librería 3D. Revise la conexión y recargue la página.';return;}
+  $('#msg3d').hidden=true;
+  const r=new THREE.WebGLRenderer({antialias:true}); r.setPixelRatio(Math.min(devicePixelRatio,2)); box.prepend(r.domElement);
+  const hq=matchMedia('(pointer:fine)').matches&&Math.min(screen.width,screen.height)>700; if(hq){r.shadowMap.enabled=true;r.shadowMap.type=THREE.PCFSoftShadowMap;}
+  const scene=new THREE.Scene(); const cam=new THREE.PerspectiveCamera(42,1,0.5,800);
+  const ctr=new THREE.OrbitControls(cam,r.domElement); ctr.enableDamping=true; ctr.maxPolarAngle=Math.PI*0.47; ctr.minDistance=8; ctr.maxDistance=320;
+  scene.add(new THREE.HemisphereLight(0xe6eef5,0x5e574b,0.85));
+  const sun=new THREE.DirectionalLight(0xfff6e8,0.95); sun.position.set(55,80,45); scene.add(sun); sun.target.position.set(0,0,16); scene.add(sun.target);
+  if(hq){sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);Object.assign(sun.shadow.camera,{left:-95,right:95,top:95,bottom:-95,near:10,far:260});sun.shadow.bias=-0.0006;sun.shadow.normalBias=.04;}
+  const fill=new THREE.DirectionalLight(0xffffff,0.25); fill.position.set(-40,30,-30); scene.add(fill);
+  const M={
+    steel:new THREE.MeshStandardMaterial({color:0x8e979d,metalness:.55,roughness:.5}),
+    galv:new THREE.MeshStandardMaterial({color:0xa9b0b4,metalness:.6,roughness:.45}),
+    porc:new THREE.MeshStandardMaterial({color:0x7b4a2d,roughness:.3,metalness:.05}),
+    alu:new THREE.MeshStandardMaterial({color:0xd0d4d8,metalness:.75,roughness:.3}),
+    tank:new THREE.MeshStandardMaterial({color:0x7d8a91,metalness:.3,roughness:.55}),
+    trafo:new THREE.MeshStandardMaterial({color:0x6e7f86,metalness:.25,roughness:.6}),
+    cab:new THREE.MeshStandardMaterial({color:0xb9c0c4,metalness:.2,roughness:.6}),
+    conc:new THREE.MeshStandardMaterial({color:0xb8b3a8,roughness:.95}),
+    gravel:new THREE.MeshStandardMaterial({color:0x9a958b,roughness:1,map:gravelTex()}),
+    lat:new THREE.MeshStandardMaterial({color:0xaeb4b8,metalness:.55,roughness:.42}),
+    asph:new THREE.MeshStandardMaterial({color:0x4a4d50,roughness:.95}),
+    wall:new THREE.MeshStandardMaterial({color:0xd9d4c7,roughness:.9}),
+    roof:new THREE.MeshStandardMaterial({color:0x7c8a8f,metalness:.3,roughness:.6}),
+    dark:new THREE.MeshStandardMaterial({color:0x2c3338,roughness:.4,metalness:.2}),
+    gw:new THREE.MeshStandardMaterial({color:0x3e4448,metalness:.5,roughness:.5}),
+    fence:new THREE.MeshStandardMaterial({map:fenceTex(),transparent:true,alphaTest:.4,side:THREE.DoubleSide,metalness:.4,roughness:.6}),
+    poly:new THREE.MeshStandardMaterial({color:0x8f979c,roughness:.55}),
+    trap:new THREE.MeshStandardMaterial({color:0x4a5258,metalness:.3,roughness:.5}),
+    glass:new THREE.MeshStandardMaterial({color:0x5d8f88,metalness:.1,roughness:.18}),
+    pol:new THREE.MeshStandardMaterial({color:0x8a8f94,metalness:.05,roughness:.55}),
+    cu:new THREE.MeshStandardMaterial({color:0xb8733a,metalness:.6,roughness:.4,emissive:0x6a3510}),
+    mark:new THREE.MeshStandardMaterial({color:0x0d6a83,emissive:0x0d6a83,emissiveIntensity:.6}),
+  };
+  three={r,scene,cam,ctr,M,root:null,pick:[],anim:{},nodeMats:{},lamps:{},objs:{},hidden:false,last:performance.now(),marker:null,selBox:null};
+  const ray=new THREE.Raycaster(), v2=new THREE.Vector2(), tip=$('#tip3d');
+  const pick=e=>{const b=r.domElement.getBoundingClientRect();v2.set(((e.clientX-b.left)/b.width)*2-1,-((e.clientY-b.top)/b.height)*2+1);ray.setFromCamera(v2,cam);const h=ray.intersectObjects(three.pick,false)[0];return h?h.object.userData:null;};
+  const showTip=(e,t)=>{const b=box.getBoundingClientRect();tip.hidden=false;tip.textContent=t;tip.style.left=Math.max(4,Math.min(e.clientX-b.left+14,b.width-tip.offsetWidth-6))+'px';tip.style.top=Math.min(e.clientY-b.top+14,b.height-tip.offsetHeight-6)+'px';};
+  const tipText=u=>{if(u.elRef){const el=T.byId[u.elRef];return `${el.code} · ${el.name} · ${state.sw[u.elRef]?'cerrado':'abierto'}`;} return u.infoRef;};
+  let down=null;
+  r.domElement.addEventListener('pointerdown',e=>{down={x:e.clientX,y:e.clientY};});
+  r.domElement.addEventListener('pointerup',e=>{if(down&&Math.hypot(e.clientX-down.x,e.clientY-down.y)<6){const u=pick(e);if(u&&u.elRef) clickEl(u.elRef); else if(u&&u.infoRef) showTip(e,u.infoRef);}down=null;});
+  r.domElement.addEventListener('pointermove',e=>{if(e.buttons) {tip.hidden=true;return;} const u=pick(e); r.domElement.style.cursor=u?.elRef?'pointer':u?.infoRef?'help':'grab';
+    if(u&&(u.elRef||u.infoRef)) showTip(e,tipText(u)); else tip.hidden=true;});
+  r.domElement.addEventListener('pointerleave',()=>tip.hidden=true);
+  new ResizeObserver(()=>size3D()).observe(box);
+  requestAnimationFrame(loop3D);
+}
+function size3D(){if(!three) return; const b=$('#view3d'); const w=b.clientWidth,h=b.clientHeight; if(!w||!h) return; three.r.setSize(w,h,false); three.cam.aspect=w/h; three.cam.updateProjectionMatrix();}
+function loop3D(t){requestAnimationFrame(loop3D); if(!three||three.hidden||!three.root) return;
+  const dt=Math.min(.05,(t-three.last)/1000); three.last=t; const k=Math.min(1,dt*5);
+  for(const id in three.anim){const a=three.anim[id]; if(Math.abs(a.target-a.cur)>.001){a.cur+=(a.target-a.cur)*k;a.apply(a.cur);}}
+  if(three.marker&&three.marker.visible){three.marker.position.y=three.marker.userData.y+Math.sin(t/260)*.35; three.marker.rotation.y+=dt*2;}
+  fx3D(dt); three.ctr.update(); three.r.render(three.scene,three.cam);}
+const V=(x,y,z)=>new THREE.Vector3(x,y,z);
+function rod(a,b,r,mat,par){const d=b.clone().sub(a),L=d.length();const m=new THREE.Mesh(geo('rod'+r,()=>new THREE.CylinderGeometry(r,r,1,8)),mat);m.scale.y=L;m.position.copy(a).add(b).multiplyScalar(.5);m.quaternion.setFromUnitVectors(V(0,1,0),d.normalize());par.add(m);return m;}
+function cyl(rt,rb,h,mat,x,y,z,par,seg=12){const m=new THREE.Mesh(geo(`c${rt}|${rb}|${h}|${seg}`,()=>new THREE.CylinderGeometry(rt,rb,h,seg)),mat);m.position.set(x,y,z);par.add(m);return m;}
+function box3(w,h,d,mat,x,y,z,par){const m=new THREE.Mesh(geo(`b${w}|${h}|${d}`,()=>new THREE.BoxGeometry(w,h,d)),mat);m.position.set(x,y,z);par.add(m);return m;}
+function support(g,x,z,h=HS){const M=three.M;box3(.7,.35,.7,M.conc,x,.175,z,g);cyl(.13,.15,h-.35,M.galv,x,.35+(h-.35)/2,z,g,12);box3(.5,.08,.5,M.galv,x,h,z,g);}
+function gravelTex(){const c=document.createElement('canvas');c.width=c.height=256;const x=c.getContext('2d');x.fillStyle='#8f8a80';x.fillRect(0,0,256,256);
+  for(let i=0;i<5200;i++){const v=110+Math.random()*120|0;x.fillStyle=`rgb(${v},${v-4},${v-10})`;const r=.6+Math.random()*1.8;x.beginPath();x.arc(Math.random()*256,Math.random()*256,r,0,7);x.fill();}
+  const t=new THREE.CanvasTexture(c);t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(40,40);return t;}
+function fenceTex(){const c=document.createElement('canvas');c.width=c.height=64;const x=c.getContext('2d');x.strokeStyle='#b9bec2';x.lineWidth=2;
+  for(let i=-64;i<128;i+=16){x.beginPath();x.moveTo(i,0);x.lineTo(i+64,64);x.stroke();x.beginPath();x.moveTo(i+64,0);x.lineTo(i,64);x.stroke();}
+  const t=new THREE.CanvasTexture(c);t.wrapS=t.wrapT=THREE.RepeatWrapping;return t;}
+function mergeGeo(parts){let n=0;parts.forEach(g=>n+=g.attributes.position.count);const pos=new Float32Array(n*3),nor=new Float32Array(n*3);let o=0;
+  parts.forEach(g=>{pos.set(g.attributes.position.array,o*3);nor.set(g.attributes.normal.array,o*3);o+=g.attributes.position.count;g.dispose();});
+  const G=new THREE.BufferGeometry();G.setAttribute('position',new THREE.BufferAttribute(pos,3));G.setAttribute('normal',new THREE.BufferAttribute(nor,3));G.computeBoundingSphere();return G;}
+function barG(a,b,t){const d=b.clone().sub(a),L=d.length(),g=new THREE.BoxGeometry(t,L,t).toNonIndexed();
+  g.applyMatrix4(new THREE.Matrix4().compose(a.clone().add(b).multiplyScalar(.5),new THREE.Quaternion().setFromUnitVectors(V(0,1,0),d.normalize()),V(1,1,1)));return g;}
+/* columna en celosía: base w, cima wt, altura h (y de 0 a h) */
+function latCol(h,w,wt){return geo(`lc${h.toFixed(2)}|${w}|${wt}`,()=>{const P=[],n=Math.max(2,Math.round(h/(w*1.3+.4))),cs=[[1,1],[1,-1],[-1,-1],[-1,1]];
+  const at=(i,k)=>{const t=i/n,hw=(w+(wt-w)*t)/2;return V(cs[k][0]*hw,h*t,cs[k][1]*hw);};
+  const leg=Math.max(.05,w*.09),br=Math.max(.025,w*.045);
+  for(let k=0;k<4;k++){P.push(barG(at(0,k),at(n,k),leg));for(let i=0;i<n;i++){const k2=(k+1)%4;P.push(barG(at(i,k),at(i,k2),br));P.push(barG(i%2?at(i,k):at(i,k2),i%2?at(i+1,k2):at(i+1,k),br));}
+    P.push(barG(at(n,k),at(n,(k+1)%4),br));}
+  return mergeGeo(P);});}
+/* viga en celosía a lo largo de x, centrada en el origen */
+function latBeam(L,w,hh){return geo(`lb${L.toFixed(2)}|${w}|${hh}`,()=>{const P=[],n=Math.max(2,Math.round(L/(hh*1.2))),cs=[[1,1],[1,-1],[-1,-1],[-1,1]];
+  const at=(i,k)=>V(-L/2+L*i/n,cs[k][0]*hh/2,cs[k][1]*w/2);
+  for(let k=0;k<4;k++){P.push(barG(at(0,k),at(n,k),.07));for(let i=0;i<=n;i++){const k2=(k+1)%4;P.push(barG(at(i,k),at(i,k2),.035));if(i<n)P.push(barG(i%2?at(i,k):at(i,k2),i%2?at(i+1,k2):at(i+1,k),.035));}}
+  return mergeGeo(P);});}
+function latMesh(g,x,y,z,ry=0){const m=new THREE.Mesh(g,three.M.lat);m.position.set(x,y,z);m.rotation.y=ry;three.root.add(m);return m;}
+function sagWire(a,b,sag,r,mat){const pts=[];for(let i=0;i<=10;i++){const t=i/10,pp=a.clone().lerp(b,t);pp.y-=sag*4*t*(1-t);pts.push(pp);}for(let i=0;i<10;i++) rod(pts[i],pts[i+1],r,mat,three.root);}
+function tower(xc,z,top){const M=three.M,yb=top-5.6,g=new THREE.Group();g.userData.info='Estructura de llegada de línea (pórtico H en celosía) con cable de guarda';three.root.add(g);
+  [-4.8,4.8].forEach(dx=>{box3(1.6,.5,1.6,M.conc,xc+dx,.25,z,g);const c=new THREE.Mesh(latCol(yb+.4,1.5,.75),M.lat);c.position.set(xc+dx,0,z);g.add(c);const pk=new THREE.Mesh(latCol(3.6,.7,.14),M.lat);pk.position.set(xc+dx,yb+.4,z);g.add(pk);});
+  const bm=new THREE.Mesh(latBeam(10.6,.8,.8),M.lat);bm.position.set(xc,yb,z);g.add(bm);}
+function insul(g,x,y0,h,z,r=.1,mat){const M=three.M;mat=mat||M.porc;cyl(r,r,h,mat,x,y0+h/2,z,g,10);const n=Math.max(3,Math.round(h/.2));for(let i=0;i<n;i++)cyl(r*2.1,r*2.1,.045,mat,x,y0+.12+i*(h-.24)/(n-1),z,g,12);}
+function nm(n){if(!three.nodeMats[n]) three.nodeMats[n]=new THREE.MeshStandardMaterial({color:0xc9cdd1,metalness:.7,roughness:.32}); return three.nodeMats[n];}
+function wire(pts,node,r=.055){for(let i=0;i<pts.length-1;i++) rod(pts[i],pts[i+1],r,nm(node),three.root);}
+function elGroup(id){const g=new THREE.Group();g.userData.el=id;three.root.add(g);three.objs[id]=g;return g;}
+function anim(id,apply){const v=state.sw[id]?1:0;three.anim[id]={cur:v,target:v,apply};apply(v);}
+function sprite(text,x,y,z,s=1,par){const cv=document.createElement('canvas'),ctx=cv.getContext('2d'),fs=56;ctx.font=`600 ${fs}px "Barlow Semi Condensed", Arial, sans-serif`;
+  const w=Math.ceil(ctx.measureText(text).width)+36;cv.width=w;cv.height=fs+26;ctx.font=`600 ${fs}px "Barlow Semi Condensed", Arial, sans-serif`;
+  ctx.fillStyle='rgba(18,24,28,.82)';ctx.beginPath();if(ctx.roundRect)ctx.roundRect(0,0,w,cv.height,14);else ctx.rect(0,0,w,cv.height);ctx.fill();
+  ctx.fillStyle='#ffffff';ctx.textBaseline='middle';ctx.fillText(text,18,cv.height/2+2);
+  const tex=new THREE.CanvasTexture(cv);const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:tex,depthTest:false,transparent:true}));
+  sp.scale.set(1.3*s*w/cv.height,1.3*s,1);sp.position.set(x,y,z);sp.renderOrder=5;(par||three.root).add(sp);return sp;}
+/* equipos */
+function pantoEl(id,x,zb){const g=elGroup(id),M=three.M,arms=[],L=YB-YT-.25;
+  PH.forEach(d=>{const X=x+d,Zp=zb+d*KB();support(g,X,Zp);insul(g,X,HS,YT-HS-.2,Zp);box3(.55,.22,.4,M.galv,X,YT-.08,Zp,g);
+    const a=new THREE.Group();a.position.set(X,YT+.05,Zp);g.add(a);
+    const m=V(0,L/2,0);[[.5],[-.5]].forEach(([s])=>{rod(V(0,0,0),V(0,L/2,s),.035,M.alu,a);rod(V(0,L/2,s),V(0,L,0),.035,M.alu,a);});
+    box3(.08,.06,.9,M.alu,0,L,0,a);arms.push(a);
+    box3(.1,.18,.12,M.alu,X,YB-.05,Zp,g);});
+  anim(id,v=>arms.forEach(a=>a.scale.y=.1+.9*v));}
+function breakerEl(id,x,z){const g=elGroup(id),M=three.M;
+  PH.forEach(d=>{const X=x+d;support(g,X,z);insul(g,X,HS,YT-HS-.3,z,.13);const ch=cyl(.26,.26,1.3,M.tank,X,YT,z,g,16);ch.rotation.x=Math.PI/2;
+    box3(.12,.12,.18,M.alu,X,YT,z-.68,g);box3(.12,.12,.18,M.alu,X,YT,z+.68,g);});
+  box3(1.1,1.5,.75,M.cab,x,.75,z-1.35,g);box3(PH[2]*2+.3,.1,.1,M.steel,x,1.6,z-.2,g);
+  const lm=new THREE.MeshStandardMaterial({color:0x888888,emissive:0x000000});const lamp=new THREE.Mesh(geo('lamp',()=>new THREE.SphereGeometry(.16,16,12)),lm);lamp.position.set(x,1.25,z-1.75);g.add(lamp);three.lamps[id]=lamp;
+  const flag=box3(.5,.3,.04,lm,x,1.85,z-1.73,g);}
+function ctEl(x,z,inf){const g=new THREE.Group();g.userData.info=inf;three.root.add(g);const M=three.M;PH.forEach(d=>{const X=x+d;support(g,X,z);insul(g,X,HS,YT-HS-.45,z,.12);cyl(.36,.3,.6,M.tank,X,YT-.1,z,g,16);});}
+function tpOne(g,X,z,tipo){const M=three.M;if(tipo==='Inductivo'){support(g,X,z);insul(g,X,HS,YT-HS-.6,z,.13);cyl(.34,.3,.7,M.tank,X,YT-.25,z,g,14);}
+  else {support(g,X,z,1.8);cyl(.32,.32,.6,M.tank,X,2.1,z,g,14);insul(g,X,2.4,YT-2.55,z,.13);cyl(.18,.18,.12,M.alu,X,YT-.12,z,g);}}
+function tpEl(x,z,tipo,inf){const g=new THREE.Group();g.userData.info=inf;three.root.add(g);PH.forEach(d=>tpOne(g,x+d,z,tipo));}
+function dpsEl(x,zz,yw,node,inf,pos){const g=new THREE.Group();g.userData.info=inf;three.root.add(g);const M=three.M,big=+state.sub.um>=145;
+  (pos||PH.map(d=>({X:x+d,z:zz,to:V(x+d,yw,zz)}))).forEach(({X,z:zz,to})=>{support(g,X,zz);box3(.3,.12,.3,M.galv,X,HS+.08,zz,g);insul(g,X,HS+.15,1.9,zz,.13,M.poly);
+    {const rr=big?.5:.36,yr=HS+1.72;const t=new THREE.Mesh(geo('ring'+rr,()=>new THREE.TorusGeometry(rr,.035,8,28)),M.alu);t.rotation.x=Math.PI/2;t.position.set(X,yr,zz);g.add(t);
+     for(let k=0;k<3;k++){const a=k*2*Math.PI/3;rod(V(X,HS+2.02,zz),V(X+Math.cos(a)*rr,yr,zz+Math.sin(a)*rr),.014,M.alu,g);}cyl(.15,.15,.08,M.alu,X,HS+2.06,zz,g,12);}
+    box3(.2,.26,.12,M.cab,X,1.5,zz-.2,g);cyl(.06,.06,.02,M.glass,X,1.5,zz-.27,g,10).rotation.x=Math.PI/2;
+    rod(V(X,HS+.05,zz-.12),V(X,1.66,zz-.2),.02,M.cu,g);rod(V(X,1.34,zz-.2),V(X,.02,zz-.2),.025,M.cu,g);box3(.3,.04,.3,M.cu,X,.03,zz-.2,g);
+    const top=V(X,HS+2.12,zz);rod(top,to,.045,nm(node),three.root);box3(.16,.16,.16,M.alu,to.x,to.y,to.z,g);cyl(.05,.05,.1,M.alu,X,HS+2.12,zz,g,8);});}
+function trapEl(X,y,z,inf){const M=three.M,g=new THREE.Group();g.userData.info=inf;three.root.add(g);cyl(.48,.48,1.1,M.trap,X,y,z,g,20);[-.5,-.17,.17,.5].forEach(o=>{const t=new THREE.Mesh(geo('tring',()=>new THREE.TorusGeometry(.5,.04,6,24)),M.alu);t.rotation.x=Math.PI/2;t.position.set(X,y+o,z);g.add(t);});
+  box3(1.1,.06,.08,M.alu,X,y+.58,z,g);box3(1.1,.06,.08,M.alu,X,y-.58,z,g);}
+function busTP(x,zb,node,tipo,inf){const g=new THREE.Group();g.userData.info=inf;three.root.add(g);PH.forEach(d=>{const zp=zb+d*KB();tpOne(g,x,zp,tipo);wire([V(x,YB,zp),V(x,YT,zp)],node,.04);});}
+function shield(xs,z,h){xs.forEach(x=>latMesh(latCol(3.4,.55,.14),x,h+.3,z));for(let i=0;i<xs.length-1;i++) sagWire(V(xs[i],h+3.7,z),V(xs[i+1],h+3.7,z),.35,.03,three.M.gw);}
+function slEl(id,x){const g=elGroup(id),M=three.M,bl=[];
+  PH.forEach(d=>{const X=x+d;[Z.SL1,Z.SL2].forEach((zz,j)=>{support(g,X,zz);insul(g,X,HS,YT-HS-.12,zz);
+      const p=new THREE.Group();p.position.set(X,YT,zz);g.add(p);box3(.07,.07,.76,M.alu,0,0,j?-.38:.38,p);bl.push([p,j]);});});
+  anim(id,v=>bl.forEach(([p,j])=>p.rotation.y=(j?-1:1)*(1-v)*Math.PI/2));}
+function esEl(id,x){const g=elGroup(id),M=three.M,arms=[],L=YT-HS-.15;
+  PH.forEach(d=>{const X=x+d+.42;const a=new THREE.Group();a.position.set(X,HS+.1,Z.SL2);g.add(a);rod(V(0,0,0),V(0,L,0),.04,M.galv,a);box3(.14,.08,.14,M.galv,0,L,0,a);arms.push(a);box3(.18,.18,.18,M.steel,X,HS+.1,Z.SL2,g);});
+  box3(PH[2]*2+.9,.06,.06,M.steel,x+.42,HS+.1,Z.SL2,g);
+  anim(id,v=>arms.forEach(a=>a.rotation.x=(1-v)*Math.PI/2*.98));}
+function strLen(){return insCalc().n*state.ins.esp/1000+.12;}
+function discString(p0,x,yTop,z){const I=state.ins,n=insCalc().n,sp=I.esp/1000,r=Math.max(.1,Math.min(.2,I.diam/2000)),par=new THREE.Group();p0.add(par);
+  if(isPol()){par.userData.info=`Aislador polimérico de suspensión Siemens ${P3FL.ref} · Um 123 kV · longitud ${fmt(I.esp,0)} mm · fuga ${fmt(I.fuga,0)} mm${P3FL.arco?` · arco ${P3FL.arco} mm`:''} · LIWV ${P3FL.liwv} kV · SML ${P3FL.sml} kN${n>1?` · ${n} en serie`:''}`;
+    const L=n*sp;rod(V(x,yTop,z),V(x,yTop-.06,z),.03,three.M.galv,par);rod(V(x,yTop-.06,z),V(x,yTop-.06-L,z),.025,three.M.pol,par);
+    const ns=Math.max(6,Math.round(L/.06));for(let i=0;i<ns;i++){const rr=i%2?r*.75:r*.95;cyl(rr,rr,.018,three.M.pol,x,yTop-.12-(i+.5)*(L-.12)/ns,z,par,14);}
+    rod(V(x,yTop-.06-L,z),V(x,yTop-L-.12,z),.03,three.M.galv,par);return;}
+  par.userData.info=`Cadena de aisladores de suspensión · ${n} discos ${DISCOS[I.disco]?.[0]||''} (paso ${fmt(I.esp,0)} mm, fuga ${fmt(I.fuga,0)} mm)`;
+  rod(V(x,yTop,z),V(x,yTop-n*sp-.12,z),.022,three.M.galv,par);
+  for(let i=0;i<n;i++) cyl(r,r*.8,.045,three.M.glass,x,yTop-.07-(i+.5)*sp,z,par,14);}
+function gantry(x,zs,h,M){zs.forEach(z=>{box3(1,.45,1,M.conc,x,.22,z,three.root);latMesh(latCol(h+.3,.8,.55),x,0,z);});latMesh(latBeam(zs[zs.length-1]-zs[0]+.6,.6,.65),x,h+.05,(zs[0]+zs[zs.length-1])/2,Math.PI/2);}
+function lineExit(x,p){const M=three.M,ya=9.8,h=ya+strLen(),wt=bayOf(p).data.wt,f=wt?.on?wt.fases:'',tr=d=>f&&(f.startsWith('3')||(f.startsWith('2')&&d>=0)||(f.startsWith('1')&&d===0));[-4.8,4.8].forEach(dx=>{box3(1,.45,1,M.conc,x+dx,.22,Z.EXIT,three.root);latMesh(latCol(h+.3,.85,.6),x+dx,0,Z.EXIT);latMesh(latCol(3,.6,.14),x+dx,h+.35,Z.EXIT);});
+  latMesh(latBeam(10.2,.6,.7),x,h+.05,Z.EXIT);
+  const tx=x*1.15,tz=Z.EXIT+46,top=24;tower(tx,tz,top);[-4.8,4.8].forEach(dx=>sagWire(V(x+dx,h+3.3,Z.EXIT),V(tx+dx,top-1.6,tz),1.2,.03,M.gw));
+  PH.forEach(d=>discString(three.root,tx+d*1.6,top-5.6,tz));
+  PH.forEach(d=>{const X=x+d;discString(three.root,X,h,Z.EXIT);const yb=tr(d)?ya-1.25:ya;
+    if(tr(d)){trapEl(X,ya-.62,Z.EXIT,`Trampa de onda ${p} · ${fmt(wt.l)} mH, ${fmt(wt.in,0)} A, banda ${wt.banda} kHz`);}
+    wire([V(X,YT,Z.EXIT-3),V(X,yb,Z.EXIT)],p+'.x');
+    const far=V(x*1.15+d*1.6,24-5.6-strLen(),Z.EXIT+46);const a=V(X,ya,Z.EXIT),pts=[];for(let i=0;i<=10;i++){const t=i/10,q=a.clone().lerp(far,t);q.y-=2.2*4*t*(1-t);pts.push(q);}wire(pts,p+'.x',.045);});}
+function trafo3(x,p){const M=three.M,zc=Z.EXIT+3.8,g=new THREE.Group(),t=bayOf(p).data.tr;g.userData.info=`${p} · Transformador de potencia · ${fmt(t.s)} MVA, ${fmt(t.v1)}/${fmt(t.v2)} kV, ${t.grupo}, ${t.refr}`;three.root.add(g);
+  box3(7.2,.5,5.4,M.conc,x,.25,zc,g);box3(5.2,3.2,3.4,M.trafo,x,2.1,zc,g);box3(5.5,.18,3.7,M.trafo,x,3.78,zc,g);
+  [-1,1].forEach(s=>{for(let i=0;i<5;i++) box3(.9,2.5,.06,M.trafo,x+s*(2.95),1.95,zc-1.3+i*.65,g);});
+  cyl(.5,.5,3.4,M.trafo,x,5.1,zc+1.3,g,16).rotation.z=Math.PI/2;rod(V(x-1.2,3.9,zc+1.3),V(x-1.2,4.7,zc+1.3),.07,M.steel,g);rod(V(x+1.2,3.9,zc+1.3),V(x+1.2,4.7,zc+1.3),.07,M.steel,g);
+  PH.forEach(d=>{const X=x+d*.75;insul(g,X,3.85,2.1,zc-1.1,.12);cyl(.12,.12,.15,M.alu,X,6.0,zc-1.1,g);wire([V(x+d,YT,Z.EXIT-3),V(X,6.05,zc-1.1)],p+'.x');
+    insul(g,x+d*.5,3.85,.9,zc+.6,.08);});
+  box3(1,1.4,.6,M.cab,x+2,1.2,zc-2.05,g);}
+function bushing(g,x,y0,h,z,r){const M=three.M;
+  cyl(r*1.9,r*1.9,.1,M.trafo,x,y0+.05,z,g,16);cyl(r*1.25,r*1.35,.35,M.alu,x,y0+.27,z,g,14);
+  const b=y0+.45,hb=h-.85;cyl(r*.8,r*1.05,hb,M.porc,x,b+hb/2,z,g,12);
+  const n=Math.max(4,Math.round(hb/.13));for(let i=0;i<n;i++){const big=i%2===0,rr=r*(big?2.05:1.6)*(1-.18*i/n);cyl(rr,rr,.05,M.porc,x,b+.08+i*(hb-.16)/(n-1),z,g,14);}
+  cyl(r*1.15,r*1.15,.28,M.alu,x,b+hb+.14,z,g,14);const dm=new THREE.Mesh(geo('dome',()=>new THREE.SphereGeometry(1,14,8,0,Math.PI*2,0,Math.PI/2)),M.alu);dm.scale.set(r*1.15,r*.8,r*1.15);dm.position.set(x,b+hb+.28,z);g.add(dm);
+  cyl(.035,.035,.22,M.alu,x,y0+h+.08,z,g,8);return y0+h+.18;}
+function fanEl(g,x,y,z){const M=three.M,f=new THREE.Group();f.position.set(x,y,z);g.add(f);
+  const ring=new THREE.Mesh(geo('fring',()=>new THREE.TorusGeometry(.42,.05,8,28)),M.dark);f.add(ring);
+  const hub=new THREE.Mesh(geo('fhub',()=>new THREE.CylinderGeometry(.09,.09,.18,10)),M.steel);hub.rotation.x=Math.PI/2;f.add(hub);
+  for(let k=0;k<4;k++){const bl=new THREE.Mesh(geo('fbl',()=>new THREE.BoxGeometry(.11,.36,.02)),M.steel);bl.position.set(Math.sin(k*Math.PI/2)*.2,Math.cos(k*Math.PI/2)*.2,0);bl.rotation.z=-k*Math.PI/2;bl.rotation.y=.4;f.add(bl);}
+  for(let k=0;k<3;k++){const gr=new THREE.Mesh(geo('fgr'+k,()=>new THREE.TorusGeometry(.12+k*.12,.012,4,24)),M.steel);gr.position.z=.06;f.add(gr);}
+  [-1,1].forEach(s=>{const m=new THREE.Mesh(geo('fmt',()=>new THREE.BoxGeometry(.04,.04,.35)),M.steel);m.position.set(s*.42,0,-.17);f.add(m);});}
+function bank1f(x,p){const M=three.M,zc=Z.EXIT+4,t=bayOf(p).data.tr,ph=['A','B','C'],hg=13,zg=Z.EXIT+11,DX=6.5,refr=String(t.refr||''),onaf=/ONAF/.test(refr),ofaf=/OF/.test(refr);
+  const st=refr.split('/').map(s=>s.trim()),su=String(t.su||'').match(/[\d.,]+/g)||[],tri=/trif/i.test(t.fases||'');
+  const coolInfo=who=>`${who} · Refrigeración ${t.refr}: radiadores${st[0]?` (${st[0]})`:''}${onaf?` + ventiladores (${st.find(s=>/ONAF/.test(s))||'ONAF'})`:''}${ofaf?` + bombas de aceite (${st.find(s=>/OF/.test(s))||'OFAF'})`:''}`;
+  if(tri){const g=new THREE.Group(),W=6.4,D=3.8;g.userData.info=`${p} · Autotransformador trifásico (alternativa al banco) · ${fmt(t.s)} MVA · ${trV(t)} kV · ${t.grupo} · ${t.refr}`;three.root.add(g);
+    box3(W+2,.5,D+4.4,M.conc,x,.25,zc+.6,g);box3(W+.2,.18,D+.2,M.dark,x,.59,zc,g);box3(W,3.6,D,M.trafo,x,2.48,zc,g);box3(W+.12,.16,D+.12,M.trafo,x,4.36,zc,g);
+    for(let k=0;k<7;k++) box3(.12,3.5,.08,M.trafo,x-W/2+.5+k*(W-1)/6,2.45,zc-D/2-.04,g);
+    [-1,1].forEach(sd=>{for(let k=0;k<4;k++) box3(.08,3.5,.12,M.trafo,x+sd*(W/2+.04),2.45,zc-1.4+k*.95,g);});
+    box3(1,1.9,.5,M.trafo,x-W/2+.9,2.1,zc-D/2-.3,g);box3(1,1.4,.45,M.cab,x+W/2-.9,1.5,zc-D/2-.28,g);box3(.6,.35,.02,M.alu,x,3.4,zc-D/2-.1,g);
+    [-1.2,1.2].forEach(dx=>rod(V(x+dx,4.44,zc+1.5),V(x+dx,5.2,zc+1.5),.06,M.steel,g));cyl(.5,.5,3.6,M.trafo,x,5.6,zc+1.5,g,16).rotation.z=Math.PI/2;
+    rod(V(x+.4,4.44,zc+.9),V(x+.4,5.2,zc+1.4),.06,M.trafo,g);box3(.24,.2,.18,M.dark,x+.4,4.8,zc+1.15,g);
+    PH.forEach((d,i)=>{const ux=x+(i-1)*1.8;cyl(.3,.3,.4,M.trafo,ux,4.6,zc+.5,g,14);const t2=bushing(g,ux,4.8,3.3,zc+.5,.16);
+      const ring=new THREE.Mesh(geo('cring',()=>new THREE.TorusGeometry(.38,.045,8,28)),M.alu);ring.rotation.x=Math.PI/2;ring.position.set(ux,t2-.35,zc+.5);g.add(ring);
+      cyl(.24,.24,.3,M.trafo,ux,4.56,zc-1.1,g,14);const t1=bushing(g,ux,4.7,2.2,zc-1.1,.13);const xp=x+(i-1)*3.2;
+      wire([V(x+d,YT,Z.EXIT-3),V(x+d,7.8,Z.EXIT-2.4),V(xp,7.8,Z.EXIT+.6),V(ux,8.3,zc-2.2),V(ux,t1+.02,zc-1.1)],p+'.x');
+      wire([V(ux,t2+.02,zc+.5),V(ux,t2+1.3,zc+3.8),V(x+d/2.2*4,hg-strLen(),zg)],p+'.h');});
+    bushing(g,x-2.8,4.44,1,zc+.5,.07);[-.35,.35].forEach(o=>bushing(g,x+2.8,4.44,.9,zc-.4+o,.07));
+    {const cg=new THREE.Group();cg.userData.info=coolInfo(`${p} (unidad trifásica)`);three.root.add(cg);const zr=zc+D/2+.85;
+     [1.0,4.0].forEach(y=>{rod(V(x,y,zc+D/2),V(x,y,zr),.1,M.trafo,cg);const h=cyl(.09,.09,W,M.trafo,x,y,zr,cg,8);h.rotation.z=Math.PI/2;});
+     for(let k=0;k<24;k++) box3(.04,2.9,1.0,M.trafo,x-W/2+.15+k*(W-.3)/23,2.5,zr,cg);
+     if(onaf) [-2.2,-.75,.75,2.2].forEach(dx=>[1.8,3.2].forEach(y=>fanEl(cg,x+dx,y,zr+.72)));
+     if(ofaf) [-1.6,1.6].forEach(dx=>{cyl(.19,.19,.55,M.cab,x+dx,.95,zr-.7,cg,12).rotation.z=Math.PI/2;box3(.28,.28,.28,M.dark,x+dx,1.22,zr-.7,cg);});}
+    {const f=new THREE.Group();f.userData.info=`Foso colector de aceite ${p} · capacidad ≥ 100 % del aceite del transformador trifásico`;three.root.add(f);box3(W+2.8,.14,D+5,M.dark,x,.07,zc+.6,f);}
+  }
+  else PH.forEach((d,i)=>{const ux=x+(i-1)*DX,g=new THREE.Group();g.userData.info=`${p} · Autotransformador monofásico, fase ${ph[i]} · ${t.su||fmt(t.s/3)+' MVA'} · ${fmt(t.v2)}/√3 / ${fmt(t.v1)}/√3 / ${fmt(t.v3)} kV · ${t.refr}`;three.root.add(g);
+    box3(3.8,.5,6.8,M.conc,ux,.25,zc+.5,g);box3(2.5,.18,3.3,M.dark,ux,.59,zc,g);box3(2.3,3.1,3.1,M.trafo,ux,2.23,zc,g);box3(2.42,.1,3.22,M.trafo,ux,.72,zc,g);box3(2.5,.16,3.3,M.trafo,ux,3.88,zc,g);
+    [-1,1].forEach(sd=>{for(let k=0;k<4;k++) box3(.08,3,.12,M.trafo,ux+sd*1.19,2.25,zc-1.2+k*.8,g);[-1,1].forEach(e=>cyl(.1,.1,.12,M.dark,ux+sd*1.0,.62,zc+e*1.3,g,10).rotation.z=Math.PI/2);});
+    [-.6,.6].forEach(dx=>box3(.12,3,.08,M.trafo,ux+dx,2.25,zc-1.59,g));
+    box3(.8,1.7,.5,M.trafo,ux-.55,2.0,zc-1.82,g);box3(.9,1.3,.45,M.cab,ux+.55,1.45,zc-1.8,g);box3(.05,1.1,.02,M.dark,ux+.55,1.45,zc-2.03,g);box3(.5,.3,.02,M.alu,ux-.55,3.1,zc-2.08,g);
+    // conservador con Buchholz, indicador de nivel y respiradero de silica gel
+    rod(V(ux-.7,3.96,zc+1.2),V(ux-.7,4.7,zc+1.2),.05,M.steel,g);rod(V(ux+.7,3.96,zc+1.2),V(ux+.7,4.7,zc+1.2),.05,M.steel,g);
+    cyl(.38,.38,2.0,M.trafo,ux,5.05,zc+1.2,g,16).rotation.z=Math.PI/2;{const cv=cyl(.3,.3,.05,M.alu,ux+1.02,5.05,zc+1.2,g,16);cv.rotation.z=Math.PI/2;}
+    rod(V(ux+.25,3.96,zc+.7),V(ux+.25,4.7,zc+1.1),.05,M.trafo,g);box3(.22,.18,.16,M.dark,ux+.25,4.3,zc+.9,g);
+    rod(V(ux-1.0,4.7,zc+1.2),V(ux-1.2,2.4,zc+1.6),.025,M.steel,g);cyl(.09,.09,.35,M.glass,ux-1.2,2.2,zc+1.6,g,10);
+    // pasatapas: 230 kV con anillo anticorona, 115 kV, neutro y terciario
+    cyl(.3,.3,.4,M.trafo,ux,4.1,zc+.35,g,14);const top230=bushing(g,ux,4.3,3.3,zc+.35,.16);
+    {const ring=new THREE.Mesh(geo('cring',()=>new THREE.TorusGeometry(.38,.045,8,28)),M.alu);ring.rotation.x=Math.PI/2;ring.position.set(ux,top230-.35,zc+.35);g.add(ring);}
+    cyl(.24,.24,.3,M.trafo,ux,4.06,zc-1.05,g,14);const top115=bushing(g,ux,4.2,2.2,zc-1.05,.13);
+    bushing(g,ux-.75,3.96,.95,zc+.35,.07);
+    {const tg=new THREE.Group();tg.userData.info=`${p}-${ph[i]} · Pasatapas del terciario ${fmt(t.v3)} kV · el delta se cierra en cable hacia la celda de servicios auxiliares (13,8 kV)`;three.root.add(tg);
+     [-.35,.35].forEach(o=>{bushing(tg,ux+.85,3.96,.9,zc-.2+o,.07);rod(V(ux+.85,4.95,zc-.2+o),V(ux+1.3,4.95,zc-.2+o),.03,M.alu,tg);rod(V(ux+1.3,4.95,zc-.2+o),V(ux+1.3,.6,zc-.2+o),.04,M.dark,tg);});}
+    // grupo de refrigeración
+    {const cg=new THREE.Group();cg.userData.info=`${p}-${ph[i]} · Refrigeración ${t.refr}: radiadores${st[0]?` (${st[0]}${su[0]?' '+su[0]+' MVA':''})`:''}${onaf?` + 4 ventiladores (${st.find(s=>/ONAF/.test(s))||'ONAF'}${su[1]?' '+su[1]+' MVA':''})`:''}${ofaf?` + bomba de aceite (${st.find(s=>/OF/.test(s))||'OFAF'}${su[2]?' '+su[2]+' MVA':''})`:''}`;three.root.add(cg);
+     const zr=zc+2.35;[1.0,3.55].forEach(y=>{rod(V(ux,y,zc+1.55),V(ux,y,zr),.08,M.trafo,cg);const h=cyl(.08,.08,2.9,M.trafo,ux,y,zr,cg,8);h.rotation.z=Math.PI/2;});
+     for(let k=0;k<12;k++) box3(.04,2.4,1.0,M.trafo,ux-1.38+k*.25,2.28,zr,cg);
+     box3(.08,.08,1.1,M.steel,ux-1.45,.95,zr,cg);box3(.08,.08,1.1,M.steel,ux+1.45,.95,zr,cg);
+     if(onaf) [[-.7,1.65],[.7,1.65],[-.7,2.85],[.7,2.85]].forEach(([dx,y])=>fanEl(cg,ux+dx,y,zr+.72));
+     if(ofaf){const pz=zc+1.9;cyl(.17,.17,.5,M.cab,ux+1.25,.95,pz,cg,12).rotation.z=Math.PI/2;cyl(.14,.14,.32,M.dark,ux+1.6,.95,pz,cg,12).rotation.z=Math.PI/2;box3(.25,.25,.25,M.dark,ux+1.25,1.2,pz,cg);}
+     box3(.5,.7,.3,M.cab,ux-1.75,1.2,zr,cg);}
+    {const f=new THREE.Group();f.userData.info=`Foso colector de aceite ${p}-${ph[i]} · cubeta con grava apagallamas, capacidad ≥ 100 % del aceite de la unidad, drenaje a tanque separador`;three.root.add(f);
+     box3(4.2,.14,7.4,M.dark,ux,.07,zc+.5,f);box3(4.2,.22,.15,M.conc,ux,.11,zc-3.15,f);box3(4.2,.22,.15,M.conc,ux,.11,zc+4.15,f);}
+    wire([V(x+d,YT,Z.EXIT-3),V(x+d,7.8,Z.EXIT-2.4),V(ux,7.8,Z.EXIT+.6),V(ux,7.8,zc-2.2),V(ux,top115+.02,zc-1.05)],p+'.x');
+    wire([V(ux,top230+.02,zc+.35),V(ux,top230+1.3,zc+3.6),V(x+d/2.2*4,hg-strLen(),zg)],p+'.h');});
+  {const fw=new THREE.Group();fw.userData.info=`Muro cortafuego ${p} · concreto reforzado, resistencia ≥ 2 h (IEEE 979 / NFPA 850 / IEC 61936-1). Más alto que el tanque conservador y más largo que la unidad con radiadores. Separación entre unidades ${fmt(DX,1)} m entre ejes`;three.root.add(fw);
+   (tri?[-1.5,1.5]:[-1.5,-.5,.5,1.5]).forEach(k=>box3(.3,6.4,8,M.conc,x+k*DX,3.2,zc+.5,fw));}
+  {const g=new THREE.Group();g.userData.info=`${p} · Celda del terciario ${fmt(t.v3)} kV · alimenta los servicios auxiliares de la subestación (transformador 13,8 kV / BT, punto 6)`;three.root.add(g);box3(1.6,2,1.2,M.cab,x+DX*1.5+2.2,1,zc-2.4,g);}
+  {const g=new THREE.Group();g.userData.info=`Pórtico de llegada ${fmt(t.v2)} kV de ${p} · viene de la central de generación`;three.root.add(g);
+   [-7.5,7.5].forEach(dx=>{box3(1,.45,1,M.conc,x+dx,.22,zg,g);latMesh(latCol(hg+.3,.85,.6),x+dx,0,zg);});latMesh(latBeam(15.6,.6,.7),x,hg+.05,zg);
+   PH.forEach(d=>discString(three.root,x+d/2.2*4,hg,zg));}
+  const tx=x*1.1,tz=Z.EXIT+48,top=28;tower(tx,tz,top);[-7.5,7.5].forEach((dx,j)=>sagWire(V(x+dx,hg+.4,zg),V(tx+(j?5:-5),top-1.6,tz),1.2,.03,M.gw));
+  PH.forEach(d=>{discString(three.root,tx+d*1.6,top-5.6,tz);const a=V(x+d/2.2*4,hg-strLen(),zg),far=V(tx+d*1.6,top-5.6-strLen(),tz),pts=[];for(let i=0;i<=10;i++){const q=a.clone().lerp(far,i/10);q.y-=2.2*4*(i/10)*(1-i/10);pts.push(q);}wire(pts,p+'.h',.045);});
+  sprite(`Entrada ${fmt(t.v2)} kV desde la central → ${p}`,tx,top+2,tz,1);
+  central230(tx,tz,top,p);}
+function central230(tx,tz,top,p){const M=three.M,z1=tz+9,z2=tz+10.5,zc=tz+15.5,zb=tz+21;
+  {const g=new THREE.Group();g.userData.info=`Patio de 230 kV de la central (fuera del alcance del proyecto) · ${p}: 52/89/57-${p}-230 se operan por orden al operador de la central`;three.root.add(g);
+   const pad=box3(22,.06,20,new THREE.MeshStandardMaterial({color:0xb08a3e,transparent:true,opacity:.35}),tx,.04,tz+15,g);
+   PH.forEach((d,k)=>{[-9,9].forEach(dx=>{box3(.5,.3,.5,M.conc,tx+dx,.15,zb+(k-1)*2.2,g);latMesh(latCol(YB,.5,.35),tx+dx,0,zb+(k-1)*2.2);});
+     wire([V(tx-9,YB,zb+(k-1)*2.2),V(tx+9,YB,zb+(k-1)*2.2)],'C:'+p,.06);});}
+  {const g=elGroup(p+':HS'),bl=[];PH.forEach(d=>{const X=tx+d;[z1,z2].forEach((zz,j)=>{support(g,X,zz);insul(g,X,HS,YT-HS-.12,zz);
+      const q=new THREE.Group();q.position.set(X,YT,zz);g.add(q);box3(.07,.07,.76,M.alu,0,0,j?-.38:.38,q);bl.push([q,j]);});});
+    anim(p+':HS',v=>bl.forEach(([q,j])=>q.rotation.y=(j?-1:1)*(1-v)*Math.PI/2));}
+  {const g=elGroup(p+':HE'),arms=[],L=YT-HS-.15;PH.forEach(d=>{const X=tx+d+.42;const a=new THREE.Group();a.position.set(X,HS+.1,z1);g.add(a);rod(V(0,0,0),V(0,L,0),.04,M.galv,a);box3(.14,.08,.14,M.galv,0,L,0,a);arms.push(a);box3(.18,.18,.18,M.steel,X,HS+.1,z1,g);});
+    anim(p+':HE',v=>arms.forEach(a=>a.rotation.x=(1-v)*Math.PI/2*.98));}
+  breakerEl(p+':HC',tx,zc);
+  PH.forEach((d,k)=>{const X=tx+d;wire([V(tx+d*1.6,top-5.6-strLen(),tz),V(X,YT+2,z1-1.5),V(X,YT,z1)],p+'.h',.04);
+    wire([V(X,YT,z2),V(X,YT,zc-.68)],p+'.hb',.04);wire([V(X,YT,zc+.68),V(X,YT+1.5,zc+2.5),V(X,YB,zb+(k-1)*2.2)],'C:'+p,.04);});
+  sprite(`Central ${fmt(bayOf(p).data.tr.v2)} kV · fuera del alcance`,tx,YB+3,zb,.8);}
+function layoutX(){const w=T.all.map(id=>{const b=bayOf(id);return (b&&b.gen)||(id==='AT'&&T.comb)?20:11;}),tot=w.reduce((a,b)=>a+b,0);let acc=-tot/2;const bnd=[acc],xs=[];w.forEach(v=>{xs.push(acc+v/2);acc+=v;bnd.push(acc);});
+  const gx=[bnd[0]];for(let i=1;i<bnd.length;i++){const last=gx[gx.length-1];if(i===bnd.length-1||bnd[i+1]-last>22.5) gx.push(bnd[i]);}
+  return {xs,w,bnd,gx,xmin:bnd[0]-1.5,xmax:bnd[bnd.length-1]+1.5};}
+function build3D(){
+  if(!three) return; dirty3D=false;
+  if(three.root){three.scene.remove(three.root); Object.values(three.nodeMats).forEach(m=>m.dispose());}
+  const root=new THREE.Group();three.root=root;three.scene.add(root);
+  three.acX=null;three.trX=[];three.pick=[];three.anim={};three.nodeMats={};three.lamps={};three.objs={};three.selBox=null;
+  const c=T.c,M=three.M,n=T.all.length,BW=11,LX=layoutX(),xb=i=>LX.xs[i];
+  const xmin=LX.xmin,xmax=LX.xmax;
+  const fx0=xmin-7,fx1=xmax+7,fz0=-20,fz1=Z.EXIT+20;
+  const grass=new THREE.Mesh(new THREE.PlaneGeometry(600,600),new THREE.MeshStandardMaterial({color:0x5a7042,roughness:1}));grass.rotation.x=-Math.PI/2;grass.position.set(0,-.02,20);grass.receiveShadow=true;root.add(grass);
+  const gp=new THREE.Mesh(new THREE.PlaneGeometry(fx1-fx0,fz1-fz0),M.gravel);gp.rotation.x=-Math.PI/2;gp.position.set((fx0+fx1)/2,0,(fz0+fz1)/2);gp.receiveShadow=true;gp.userData.noShadow=true;root.add(gp);
+  M.gravel.map.repeat.set((fx1-fx0)/2.5,(fz1-fz0)/2.5);
+  {const rd=box3(1,1,1,M.asph,(fx0+fx1)/2,.02,-7.5,root);rd.scale.set(fx1-fx0,.04,4);rd.receiveShadow=true;rd.userData.noShadow=true;
+   const rd2=box3(1,1,1,M.asph,fx0+6,.02,(fz0-7.5)/2-1,root);rd2.scale.set(4,.04,-7.5-fz0+2);rd2.userData.noShadow=true;
+   const tr=box3(1,1,1,M.conc,(xmin+xmax)/2,.06,16.25,root);tr.scale.set(xmax-xmin,.12,.9);tr.userData.noShadow=true;}
+  // cerramiento
+  {const H=2.6,pm=M.galv,fm=M.fence;const side=(a,b)=>{const L=a.distanceTo(b),n=Math.ceil(L/3);for(let i=0;i<=n;i++){const q=a.clone().lerp(b,i/n);cyl(.05,.05,H,pm,q.x,H/2,q.z,root,6);}
+      const pl=new THREE.Mesh(new THREE.PlaneGeometry(L,H-.2),fm.clone());pl.material.map=fm.map.clone();pl.material.map.repeat.set(L/0.6,(H-.2)/0.6);pl.material.map.needsUpdate=true;
+      pl.position.set((a.x+b.x)/2,H/2,(a.z+b.z)/2);pl.rotation.y=Math.atan2(-(b.z-a.z),b.x-a.x);pl.userData.noShadow=true;root.add(pl);rod(V(a.x,H,a.z),V(b.x,H,b.z),.025,pm,root);};
+   side(V(fx0+9,0,fz0),V(fx1,0,fz0));side(V(fx1,0,fz0),V(fx1,0,fz1));side(V(fx1,0,fz1),V(fx0,0,fz1));side(V(fx0,0,fz1),V(fx0,0,fz0));
+   const gate=box3(1,1,1,M.galv,fx0+4.5,1.2,fz0,root);gate.scale.set(7,.08,.08);}
+  // caseta de control
+  {const cx=(xmin+xmax)/2-6,cz=-14.5,g=new THREE.Group();g.userData.info='Caseta de control · tableros de protección y control, servicios auxiliares AC/DC, baterías y comunicaciones';root.add(g);
+   box3(16.4,.3,7.4,M.conc,cx,.15,cz,g);box3(16,3.8,7,M.wall,cx,2.2,cz,g);box3(16.8,.25,7.8,M.roof,cx,4.22,cz,g);
+   box3(1.6,2.4,.08,M.dark,cx-5,1.5,cz+3.52,g);for(let i=0;i<4;i++) box3(1.8,1,.06,M.dark,cx-1.5+i*2.8,2.6,cz+3.52,g);
+   box3(2.2,1.2,1.2,M.cab,cx+9.4,.9,cz+1,g);sprite('Caseta de control',cx,6.2,cz,.9);}
+  // fence
+  const fz=[-6,Z.EXIT+8.5];
+  // barras y pórticos
+  const buses=[['B1',Z.B1]]; if(c.b2) buses.push(['B2',Z.B2]); if(c.bt) buses.push(['BT',Z.BT]);
+  const TPX=[[0,.115],[-.2,-.23],[.2,-.23]];/* triplex: haz triangular, separación 0,40 m entre subconductores (supuesto visual) */
+  for(const [b,zb] of buses){PH.forEach(d=>{TPX.forEach(([dz,dy])=>wire([V(xmin,YB+dy,zb+d*KB()+dz),V(xmax,YB+dy,zb+d*KB()+dz)],b,.045));for(let xs=xmin+3;xs<xmax;xs+=6){const zc=zb+d*KB();rod(V(xs,YB+.115,zc),V(xs,YB-.23,zc-.2),.018,M.galv,root);rod(V(xs,YB+.115,zc),V(xs,YB-.23,zc+.2),.018,M.galv,root);rod(V(xs,YB-.23,zc-.2),V(xs,YB-.23,zc+.2),.018,M.galv,root);}}); sprite(b==='B1'?(c.b2?'B1 · Principal':'BP · Principal'):b==='B2'?'B2 · Reserva':'BT · Transferencia',xmin-2.4,YB+1.6,zb,1.1);sprite('Triplex 3 × Drake 795 por fase',xmin-2.4,YB+.9,zb,.6);}
+  const gzM=c.b2?[Z.B1-GW(),(Z.B1+Z.B2)/2,Z.B2+GW()]:[Z.B1-GW(),Z.B1+GW()];
+  const gx=LX.gx;
+  const SL=strLen();
+  gx.forEach(x=>{gantry(x,gzM,YB+SL,M);buses.forEach(([b,zb])=>{if(b!=='BT') PH.forEach(d=>discString(root,x,YB+SL,zb+d*KB()));});
+    if(c.bt){gantry(x,[Z.BT-GW(),Z.BT+GW()],YB+SL,M);PH.forEach(d=>discString(root,x,YB+SL,Z.BT+d*KB()));}});
+  {const gs=gx.length>1?gx:[gx[0]-BW,gx[0]];gzM.forEach(z=>shield(gs,z,YB+SL));if(c.bt){shield(gs,Z.BT-GW(),YB+SL);shield(gs,Z.BT+GW(),YB+SL);}}
+  buses.forEach(([b,zb])=>{if(b!=='BT') busTP(xmax-.9,zb,b,state.busvt.tipo,`TP (VT) de barra ${b==='B1'?(c.b2?'principal B1':'principal'):'de reserva B2'} · ${state.busvt.tipo.toLowerCase()} · ${state.busvt.rel} · clase ${state.busvt.clase}`);});
+  sprite(isPol()?`Aislador polimérico ${P3FL.ref} (${fmt(state.ins.esp/1000,2)} m)`:`Cadena de ${insCalc().n} discos`,gx[1]??gx[0],YB+SL+1.4,Z.B1-3.7,.75);
+  // malla de puesta a tierra
+  {const g=state.grid,r=gridCalc(),gg=new THREE.Group();three.gridG=gg;root.add(gg);gg.visible=$('#showGrid').checked;
+   if(!r.err){const zc=(Z.B1-6+Z.EXIT+8)/2,cu=M.cu;
+    for(let i=0;i<r.nx;i++){const z=zc-g.ly/2+i*g.ly/(r.nx-1);box3(1,1,1,cu,0,.05,z,gg).scale.set(+g.lx,.06,.28);}
+    for(let j=0;j<r.ny;j++){const x=-g.lx/2+j*g.lx/(r.ny-1);box3(1,1,1,cu,x,.05,zc,gg).scale.set(.28,.06,+g.ly);}
+    for(let k=0;k<r.nr;k++){let t=k*r.Lp/r.nr,x,y;const a=+g.lx,b=+g.ly;if(t<a){x=t;y=0;}else if(t<a+b){x=a;y=t-a;}else if(t<2*a+b){x=a-(t-a-b);y=b;}else{x=0;y=b-(t-2*a-b);}
+      cyl(.12,.12,.5,cu,x-a/2,.2,zc-b/2+y,gg,8);}}}
+  T.all.forEach((id,i)=>{const x=xb(i);
+    if(T.res.includes(id)){const g=new THREE.Group();g.userData.info=`${id} · Bahía de reserva (futura) · solo fundaciones y espacio reservado`;root.add(g);
+      [Z.B1,Z.B2,Z.CB,Z.CT,Z.TP,Z.BT].filter(z=>z!=null).forEach(z=>PH.forEach(d=>box3(.9,.35,.9,M.conc,x+d,.18,z,g)));
+      M.ghost??=new THREE.MeshStandardMaterial({color:0x8fb4c6,transparent:true,opacity:.3,depthWrite:false});
+      PH.forEach(d=>{[[Z.B1,2.6],[c.b2?Z.B2:null,2.6],[Z.CB,4.6],[Z.CT,4.4],[Z.SL1,3.6],[Z.TP,4.6]].forEach(([z,hh])=>{if(z!=null){const m=cyl(.22,.22,hh,M.ghost,x+d,.35+hh/2,z,g,10);m.userData.noShadow=true;}});});
+      {const pz=(Z.B1+Z.TP)/2,lenz=Z.TP-Z.B1+4,f=new THREE.Mesh(new THREE.PlaneGeometry(9,lenz),new THREE.MeshBasicMaterial({color:0xf0c040,transparent:true,opacity:.18,depthWrite:false}));f.rotation.x=-Math.PI/2;f.position.set(x,.03,pz);f.userData.noShadow=true;g.add(f);}
+      sprite(`${id} · Reserva (futura), sin equipos`,x,9.5,Z.CT,1);return;}
+    if(id==='AC'){PH.forEach(d=>{const X=x+d;wire([V(X,YT,Z.B1+d*KB()),V(X,YT,Z.AC-.7)],'AC.a');wire([V(X,YT,Z.AC+.7),V(X,YT,Z.B2+d*KB())],'AC.b');});
+      pantoEl('AC:S1',x,Z.B1);breakerEl('AC:CB',x,Z.AC);pantoEl('AC:S2',x,Z.B2);sprite('Acople B1–B2',x,YB+strLen()+2.2,Z.AC,1);three.acX=x;return;}
+    if(id==='AT'){const cm=T.comb,xa=cm?x-5:x,xb=x+5;
+      PH.forEach((d,i)=>{const X=xa+d;wire([V(X,YT,Z.B1+d*KB()),V(X,YT,Z.CB-.7)],'AT.a');wire([V(X,YT,Z.CB+.7),V(X,YT,Z.BT+d*KB())],'AT.b');
+        /* rama de acople: cada fase sale de la columna principal a otra profundidad, sube 1,6 m y cruza a la columna del 89-AT-A bajo la barra de reserva */
+        if(cm){const zj=Z.CT+1.4+i*1.5,yj=YT+1.6;wire([V(X,YT,zj),V(X,yj,zj),V(xb+d,yj,zj),V(xb+d,YT,zj),V(xb+d,YT,Z.B2+d*KB())],'AT.b');}});
+      pantoEl('AT:S1',xa,Z.B1);if(c.b2) pantoEl('AT:S2',xa,Z.B2);breakerEl('AT:CB',xa,Z.CB);ctEl(xa,Z.CT,`TC (CT) · Transformadores de corriente AT · ${state.special.AT.ct.rel} A · ${state.special.AT.ct.nuc}`);pantoEl('AT:ST',xa,Z.BT);
+      if(cm){pantoEl('AT:SA',xb,Z.B2);three.acX=xb;three.acZ=Z.B2+3;sprite('Acople-transferencia',x,13,Z.CT+3,.9);} else sprite('Transferencia',x,13,Z.BT,.9);return;}
+    const b=bayOf(id),p=id;
+    PH.forEach(d=>{const X=x+d;wire([V(X,YT,Z.B1+d*KB()),V(X,YT,Z.CB-.7)],p+'.a');wire([V(X,YT,Z.CB+.7),V(X,YT,Z.SL1)],p+'.b');wire([V(X,YT,Z.SL2),V(X,YT,Z.EXIT-3)],p+'.x');});
+    pantoEl(p+':S1',x,Z.B1);if(c.b2) pantoEl(p+':S2',x,Z.B2);breakerEl(p+':CB',x,Z.CB);ctEl(x,Z.CT,`TC (CT) · Transformadores de corriente ${p} · ${b.data.ct.rel} A · ${b.data.ct.nuc}`);slEl(p+':SL',x);esEl(p+':ET',x);
+    tpEl(x,Z.TP,b.data.vt.tipo,`TP (VT/PT) ${b.data.vt.tipo==='Capacitivo'?'capacitivo':'inductivo'} ${p} · ${b.data.vt.rel} · clase ${b.data.vt.clase}`);
+    {const zz=Z.EXIT-2.2,t=.8,inf=`DPS (pararrayos) ${p} · Ur ${fmt(b.data.dps.ur)} kV, Uc ${fmt(b.data.dps.uc)} kV, ${fmt(b.data.dps.inom)} kA · conectado fase–tierra: bajante desde el conductor, anillo de graduación (anticorona), contador de descargas y conexión a la malla`;
+     if(b.gen&&/trif/i.test(b.data.tr.fases||'')) dpsEl(x,0,0,p+'.x',inf+' · junto al transformador',PH.map((d,i)=>{const xp=x+(i-1)*3.2;return {X:xp,z:Z.EXIT+.2,to:V(xp,7.8,Z.EXIT+.6)};}));
+     else if(b.gen) dpsEl(x,0,0,p+'.x',inf+' · junto a los pasatapas de 115 kV del banco',PH.map((d,i)=>{const ux=x+(i-1)*6.5;return {X:ux+1.4,z:Z.EXIT+.6,to:V(ux,7.8,Z.EXIT+.6)};}));
+     else dpsEl(x,zz,b.tipo==='linea'?YT+t/3*(9.8-YT):YT+t/5.7*(6.05-YT),p+'.x',inf);}
+    if(c.bt) pantoEl(p+':ST',x,Z.BT);
+    if(b.tipo==='linea'){lineExit(x,p);sprite(`${p} · Salida 115 kV → ${b.data.ln.destino}`,x,13.2,Z.EXIT,.9);} else {three.trX.push(x);if(b.gen){bank1f(x,p);sprite(`${p} · ${/trif/i.test(b.data.tr.fases||'')?'Unidad 3φ':'Banco 3×1φ'} ${fmt(b.data.tr.s)} MVA ${trV(b.data.tr)} kV`,x,9.6,Z.EXIT+2,.95);} else {trafo3(x,p);sprite(`${p} · ${fmt(b.data.tr.s)} MVA ${trV(b.data.tr)} kV`,x,8.5,Z.EXIT+4,.9);}}
+  });
+  {const sg=shdGeom(),P=+state.shd.punta||0;
+   if(P>0) sg.rows.forEach(r=>r.xs.forEach(x=>{const g=new THREE.Group();g.userData.info=`Punta Franklin sobre ${r.name.toLowerCase()} · punta a ${fmt(r.h,1)} m del suelo`;root.add(g);
+     rod(V(x,r.h-P,r.z),V(x,r.h-.25,r.z),.035,M.galv,g);const tip=new THREE.Mesh(geo('ftip',()=>new THREE.ConeGeometry(.06,.3,8)),M.galv);tip.position.set(x,r.h-.15,r.z);g.add(tip);}));
+   const zr=shdCalc(),sh=new THREE.Group();three.shdG=sh;root.add(sh);sh.visible=$('#showShd').checked;
+   const mat=new THREE.MeshBasicMaterial({color:0xf0a030,transparent:true,opacity:.16,side:THREE.DoubleSide,depthWrite:false});
+   zr.segs.forEach(q=>{if(q.gap) return;const pos=[],N=24;for(let i=0;i<=N;i++){const z=q.z1+(q.z2-q.z1)*i/N,y=zr.yArc(q,z);pos.push(xmin,y,z,xmax,y,z);}
+     const idx=[];for(let i=0;i<N;i++){const a=2*i;idx.push(a,a+1,a+2,a+1,a+3,a+2);}
+     const gg=new THREE.BufferGeometry();gg.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));gg.setIndex(idx);const m=new THREE.Mesh(gg,mat);m.userData.noShadow=true;sh.add(m);});}
+  // capa de diseño: valores de los entregables 1 a 3
+  /* entorno urbano: andenes, calles, carros, árboles y edificios alrededor del cerramiento (subestación en una metrópoli) */
+  {const cg=new THREE.Group();three.cityG=cg;root.add(cg);cg.visible=$('#showCity').checked;cg.userData.info='Entorno urbano ilustrativo: la subestación está en una metrópoli. Andén y calle junto al cerramiento (franja R de 4,0 m hacia adentro, RETIE 2013 tabla 23.1)';
+   let sd=7;const rnd=()=>(sd=(sd*16807)%2147483647)/2147483647;
+   const CM=three.cityM||(three.cityM=(()=>{const c=document.createElement('canvas');c.width=c.height=64;const x=c.getContext('2d');x.fillStyle='#e9e6df';x.fillRect(0,0,64,64);
+      for(const [wx,wy] of [[8,10],[36,10],[8,40],[36,40]]){x.fillStyle='#3b4a57';x.fillRect(wx,wy,20,16);x.fillStyle='rgba(255,255,255,.25)';x.fillRect(wx,wy,20,3);}
+      x.fillStyle='#e9e6df';x.fillRect(0,0,4,4);const t=new THREE.CanvasTexture(c);t.wrapS=t.wrapT=THREE.RepeatWrapping;
+      const mats=[0xffffff,0xd9c7b0,0xb9c6cf,0xc9b9a9,0xa9b4a0,0xe0d2c4].map(col=>new THREE.MeshStandardMaterial({map:t,color:col,roughness:.85}));
+      return {mats,side:new THREE.MeshStandardMaterial({color:0xbdbab3,roughness:.9}),road:new THREE.MeshStandardMaterial({color:0x3d4044,roughness:.95}),
+        line:new THREE.MeshBasicMaterial({color:0xf2f2f2}),yl:new THREE.MeshBasicMaterial({color:0xf2c230}),leaf:new THREE.MeshStandardMaterial({color:0x3f7a3a,roughness:.9}),trunk:new THREE.MeshStandardMaterial({color:0x6b4a2f}),
+        glass:new THREE.MeshStandardMaterial({color:0x1d2a33,roughness:.3,metalness:.4}),park:new THREE.MeshStandardMaterial({color:0x6c8f4e,roughness:1}),skin:new THREE.MeshStandardMaterial({color:0x8a5a3c}),
+        cars:[0xc62828,0x1565c0,0xf5f5f5,0x37474f,0xf9a825,0x2e7d32,0x8e24aa].map(c=>new THREE.MeshStandardMaterial({color:c,roughness:.4,metalness:.3}))};})());
+   const flat=(x0,z0,x1,z1,mat,y)=>{const m=box3(1,1,1,mat,(x0+x1)/2,y,(z0+z1)/2,cg);m.scale.set(x1-x0,.06,z1-z0);m.receiveShadow=true;return m;};
+   const SW=3,ST=11,a0=fx0-SW,a1=fx1+SW,b0=fz0-SW,b1=fz1+SW,o0=a0-ST,o1=a1+ST,q0=b0-ST,q1=b1+ST;
+   // andenes junto al cerramiento y calles alrededor
+   flat(a0,b0,a1,fz0,CM.side,.06);flat(a0,fz1,a1,b1,CM.side,.06);flat(a0,fz0,fx0,fz1,CM.side,.06);flat(fx1,fz0,a1,fz1,CM.side,.06);
+   flat(o0,q0,o1,b0,CM.road,.03);flat(o0,b1,o1,q1,CM.road,.03);flat(o0,b0,a0,b1,CM.road,.03);flat(a1,b0,o1,b1,CM.road,.03);
+   const dash=(x0,z0,x1,z1)=>{const L=Math.hypot(x1-x0,z1-z0),n=Math.floor(L/6);for(let i=0;i<n;i++){const t=(i+.25)/n,x=x0+(x1-x0)*t,z=z0+(z1-z0)*t;const d=box3(1,1,1,CM.line,x,.07,z,cg);d.scale.set(x1===x0?.15:2.6,.02,x1===x0?2.6:.15);}};
+   dash(o0,(q0+b0)/2,o1,(q0+b0)/2);dash(o0,(q1+b1)/2,o1,(q1+b1)/2);dash((o0+a0)/2,q0,(o0+a0)/2,q1);dash((o1+a1)/2,q0,(o1+a1)/2,q1);
+   // andenes del otro lado de la calle
+   const W2=4;flat(o0-W2,q0-W2,o1+W2,q0,CM.side,.06);flat(o0-W2,q1,o1+W2,q1+W2,CM.side,.06);flat(o0-W2,q0,o0,q1,CM.side,.06);flat(o1,q0,o1+W2,q1,CM.side,.06);
+   // árboles
+   const tree=(x,z,s=1)=>{cyl(.15*s,.2*s,2.4*s,CM.trunk,x,1.2*s,z,cg,6);const c=new THREE.Mesh(geo('treec',()=>new THREE.SphereGeometry(1.7,8,6)),CM.leaf);c.scale.setScalar(s);c.position.set(x,3.3*s,z);cg.add(c);};
+   for(let x=o0;x<=o1;x+=12){tree(x,q0-W2/2,.9+rnd()*.3);if(Math.abs(x)>75)tree(x,q1+W2/2,.9+rnd()*.3);}
+   for(let z=q0+10;z<=q1-4;z+=12){tree(o0-W2/2,z,.9+rnd()*.3);tree(o1+W2/2,z,.9+rnd()*.3);}
+   // edificios: manzanas al frente y a los costados; atrás queda la franja de servidumbre de las líneas
+   const bld=(x,z,w,d,h)=>{const g=new THREE.BoxGeometry(w,h,d),uv=g.attributes.uv,S=[[d/4,h/3.2],[d/4,h/3.2],[0,0],[0,0],[w/4,h/3.2],[w/4,h/3.2]];
+      for(let f=0;f<6;f++)for(let k=0;k<4;k++){const i=f*4+k;uv.setXY(i,uv.getX(i)*S[f][0],uv.getY(i)*S[f][1]);}
+      const m=new THREE.Mesh(g,CM.mats[Math.floor(rnd()*CM.mats.length)]);m.position.set(x,h/2,z);cg.add(m);box3(w+.4,.5,d+.4,CM.side,x,h+.25,z,cg);
+      if(h>18&&rnd()<.5){box3(w*.3,2.2,d*.3,CM.side,x,h+1.4,z,cg);}};
+   const row=(fixed,from,to,axis,dir,deep)=>{let p=from;while(p<to){const w=10+rnd()*12,d=deep*(0.7+rnd()*.3),h=6+Math.pow(rnd(),1.6)*38;const c=fixed+dir*(d/2+1);
+      if(axis==='x')bld(p+w/2,c,w,d,h);else bld(c,p+w/2,d,w,h);p+=w+2+rnd()*4;}};
+   row(q0-W2,o0-W2,o1+W2,'x',-1,18);row(q0-W2-26,o0-30,o1+30,'x',-1,20);
+   row(o0-W2,q0,q1+40,'z',-1,18);row(o1+W2,q0,q1+40,'z',1,18);row(o0-W2-26,q0-30,q1+60,'z',-1,20);row(o1+W2+26,q0-30,q1+60,'z',1,20);
+   // franja verde de servidumbre detrás (por ahí salen las líneas)
+   flat(o0,q1+W2,o1,q1+90,CM.park,.02);
+   // carros
+   const car=(x,z,rot)=>{const g=new THREE.Group(),m=CM.cars[Math.floor(rnd()*CM.cars.length)];box3(4.2,.8,1.8,m,0,.65,0,g);box3(2.2,.7,1.6,CM.glass,-.2,1.4,0,g);
+      for(const wx of [-1.3,1.3])for(const wz of [-.85,.85]){const w=cyl(.33,.33,.25,CM.road,wx,.33,wz,g,10);w.rotation.x=Math.PI/2;}g.position.set(x,0,z);g.rotation.y=rot;cg.add(g);};
+   for(let i=0;i<9;i++){const x=o0+10+rnd()*(o1-o0-20);car(x,(q0+b0)/2+(i%2?2.6:-2.6),i%2?Math.PI:0);}
+   for(let i=0;i<5;i++){const x=o0+10+rnd()*(o1-o0-20);car(x,(q1+b1)/2+(i%2?2.6:-2.6),i%2?Math.PI:0);}
+   for(let i=0;i<5;i++){car((o0+a0)/2+(i%2?2.6:-2.6),q0+10+rnd()*(q1-q0-20),Math.PI/2);car((o1+a1)/2+(i%2?2.6:-2.6),q0+10+rnd()*(q1-q0-20),-Math.PI/2);}
+   // peatones en el andén junto a la cerca
+   const ped=(x,z)=>{const m=CM.cars[Math.floor(rnd()*CM.cars.length)];cyl(.16,.14,.85,CM.road,x,.45,z,cg,8);cyl(.22,.2,.65,m,x,1.2,z,cg,8);const h=new THREE.Mesh(geo('pedh',()=>new THREE.SphereGeometry(.12,10,8)),CM.skin);h.position.set(x,1.66,z);cg.add(h);};
+   for(const x of [-30,-8,15,38]) ped(x,fz0-1.6);for(const z of [0,25]) ped(fx1+1.5,z);
+   sprite('Andén público',fx0+25,1.6,fz0-1.5,.6,cg);sprite('Calle',fx0+40,1.6,(q0+b0)/2,.6,cg);
+   cg.traverse(o=>{if(o.isMesh)o.userData.noShadow=true;});}
+  /* vías de circulación: perimetrales a lado y lado, trasera detrás de los bancos y ramales a cada banco (entregable 3, 3.2.4) */
+  {const RZ=Z.EXIT+16.5,lx=fx0+4,rx=fx1-4,rdx=(x0,z0,x1,z1,w=4)=>{const m=box3(1,1,1,M.asph,(x0+x1)/2,.025,(z0+z1)/2,root);m.scale.set(Math.abs(x1-x0)||w,.05,Math.abs(z1-z0)||w);m.userData.noShadow=true;m.receiveShadow=true;
+      m.userData.info='Vía de circulación interna · camiones y grúas para montaje y mantenimiento. Altura mínima de partes vivas sobre la vía: 6,00 m (gálibo 4,0 m + valor básico 1,21 m + 0,70 m = 5,91 m, RETIE; Grupo 2)';return m;};
+   rdx(lx,-7.5,lx,RZ);rdx(rx,-9.5,rx,RZ);rdx(lx-2,RZ,rx+2,RZ);
+   const gx=T.all.map((id,i)=>bayOf(id)?.gen?xb(i):null).filter(v=>v!=null);gx.forEach(x=>rdx(x,Z.EXIT+7.5,x,RZ-2));
+   sprite('Vía de circulación (4 m)',(lx+rx)/2,1.6,RZ,.7);
+   // camión con una unidad de autotransformador (perfil de 4,0 m)
+   const vx=(gx[0]??(xmin+xmax)/2)+9,g=new THREE.Group();g.position.set(vx,0,RZ);root.add(g);three.veh={x:vx,z:RZ};
+   g.userData.info=`Camión con una unidad monofásica del autotransformador · perfil de ${fmt(DES.veh,1)} m de alto y 2,5 m de ancho (gálibo supuesto por el Grupo 2)`;
+   const yel=new THREE.MeshStandardMaterial({color:0xf2b705,roughness:.6}),blk=new THREE.MeshStandardMaterial({color:0x222426,roughness:.8}),gr=new THREE.MeshStandardMaterial({color:0x7d8a91,roughness:.5,metalness:.3});
+   box3(10,.45,2.4,blk,0,.95,0,g);box3(2.3,2.4,2.5,yel,4.1,2.3,0,g);box3(.06,1,2.2,M.dark,5.26,2.9,0,g);box3(7.4,.3,2.5,yel,-1.2,1.33,0,g);
+   box3(3.6,DES.veh-1.48,2.2,gr,-1.6,1.48+(DES.veh-1.48)/2,0,g);
+   for(const wx of [4,-2.4,-3.6]) for(const wz of [-1.05,1.05]){const w=cyl(.48,.48,.35,blk,wx,.48,wz,g,14);w.rotation.x=Math.PI/2;}
+   g.traverse(o=>{if(o.isMesh)o.castShadow=true;});}
+  {const dg=new THREE.Group();three.dimG=dg;root.add(dg);dg.visible=$('#showDim').checked;
+   const ym=new THREE.MeshBasicMaterial({color:0xffc83d,depthTest:false,transparent:true}),bm=new THREE.MeshBasicMaterial({color:0x45b6e8,transparent:true,opacity:.16,depthWrite:false}),
+     pm=new THREE.MeshBasicMaterial({color:0xe85a4f,transparent:true,opacity:.22,side:THREE.DoubleSide,depthWrite:false}),hm=new THREE.MeshStandardMaterial({color:0xff8a1f,emissive:0x803000,roughness:.7});
+   const tag=(t,x,y,z,s=.42)=>sprite(t,x,y,z,s,dg);
+   const dim=(a,b,t,off)=>{const r=rod(a,b,.03,ym,dg);r.renderOrder=6;const u=b.clone().sub(a).normalize();
+     [[a,u.clone().negate()],[b,u]].forEach(([p,dir])=>{const cn=new THREE.Mesh(geo('dimc',()=>new THREE.ConeGeometry(.12,.35,8)),ym);cn.renderOrder=6;cn.position.copy(p).addScaledVector(dir,-.17);cn.quaternion.setFromUnitVectors(V(0,1,0),dir);dg.add(cn);});
+     const m=a.clone().add(b).multiplyScalar(.5);if(off) m.add(off);tag(t,m.x,m.y,m.z);};
+   const bays=T.all.map((id,i)=>({id,i,x:xb(i),b:bayOf(id)})).filter(o=>o.b);
+   const L=bays.find(o=>o.b.tipo==='linea')||bays[0], TR=bays.find(o=>o.b.gen);
+   if(L){const x=L.x,i=L.i,x0=LX.bnd[i],x1=LX.bnd[i+1];three.dimX=x;
+    // alturas de los niveles: regla a la izquierda del patio
+    const rx=x0+1.6,rz=Z.B1-4;rod(V(rx,0,rz),V(rx,9.8,rz),.05,ym,dg).renderOrder=6;
+    [[DES.hs,`Equipos: partes vivas ≥ ${fmt(DES.hs,2)} m (2,30 + 0,0105·Um) · personal ≥ ${fmt(DES.p,2)} m`],[YB-DES.fl,`Barras, punto más bajo ${fmt(YB-DES.fl,2)} m (mín. ${fmt(DES.hb,2)} m)`],[YB,`Amarre de barras ${fmt(YB,1)} m (flecha ${fmt(DES.fl,2)} m)`],[9.8,`Remate de líneas 9,8 m (mín. ${fmt(DES.hl,1)} m)`]].forEach(([h,t])=>{
+      rod(V(rx-.6,h,rz),V(rx+.6,h,rz),.04,ym,dg).renderOrder=6;tag(t,rx,h+.45,rz,.5);});
+    // separación entre fases en equipos (interruptor) y en barras
+    dim(V(x+PH[0],YT+1.6,Z.CB),V(x,YT+1.6,Z.CB),`Fases en equipos ${fmt(-PH[0],2)} m (mín. d f-f ${fmt(DES.dff,2)} m)`,V(0,.6,0));
+    dim(V(x0+1.2,YB+.7,Z.B1),V(x0+1.2,YB+.7,Z.B1+PH[2]*KB()),`Fases en barras ${fmt(PH[2]*KB(),2)} m (flexibilidad: 1,30 + 10√66 cm = ${fmt(DES.dflex,2)} m)`,V(0,.6,0));
+    // burbuja fase–tierra alrededor de la fase central de la barra
+    {const tb=new THREE.Mesh(new THREE.CylinderGeometry(DES.dft,DES.dft,x1-x0,24,1,true),bm);tb.rotation.z=Math.PI/2;tb.position.set((x0+x1)/2,YB,Z.B1);dg.add(tb);
+     tag(`Distancia mínima fase–tierra ${fmt(DES.dft,2)} m · fase–fase ${fmt(DES.dff,2)} m · valor básico ${fmt(DES.vb,2)} m`,(x0+x1)/2,YB+DES.dft+.7,Z.B1);}
+    // ancho de bahía
+    dim(V(x0,.35,Z.B1-6.5),V(x1,.35,Z.B1-6.5),`Bahía de línea ${fmt(x1-x0,0)} m (mín. 2·2,11 + 2·1,95 = ${fmt(DES.wmin,2)} m)`,V(0,.7,0));
+    // persona: alcance 2,25 m + valor básico = altura mínima de partes vivas
+    {const pz=(Z.CT+Z.SL1)/2,px=x+1.1;cyl(.2,.17,1.05,hm,px,.53,pz,dg);cyl(.24,.22,.62,hm,px,1.37,pz,dg);const hd=new THREE.Mesh(geo('hd',()=>new THREE.SphereGeometry(.13,12,10)),hm);hd.position.set(px,1.82,pz);dg.add(hd);
+     rod(V(px+.2,1.6,pz),V(px+.28,2.25,pz),.05,hm,dg);
+     const pl=new THREE.Mesh(new THREE.PlaneGeometry(2.4,2.4),pm);pl.rotation.x=-Math.PI/2;pl.position.set(px,DES.p,pz);dg.add(pl);
+     dim(V(px+.9,0,pz),V(px+.9,2.25,pz),'Persona con brazo arriba 2,25 m',V(1.6,0,0));
+     dim(V(px+.9,2.25,pz),V(px+.9,DES.p,pz),`+ valor básico ${fmt(DES.vb,2)} m = ${fmt(DES.pc,2)} → ${fmt(DES.p,2)} m`,V(1.9,.2,0));
+     dim(V(px-.4,2.6,pz),V(px-.4-DES.dh,2.6,pz),`Zona de trabajo horizontal Dh ${fmt(DES.dh,2)} m`,V(0,.55,0));}
+    // aislamiento: BIL y pararrayos
+    tag(`Todos los equipos de 123 kV: BIL ${DES.bil} kV · ${DES.pf} kV 1 min (Grupo 1)`,x,YT+3.4,Z.CB+.8,.5);
+    tag(`Descargador ${DES.dps} · Ur ${fmt(L.b.data.dps.ur)} kV · clase 3 · NPR ${DES.upl} kV (×1,103 = 249,3 kV a 1800 m)`,x,7.4,Z.EXIT-2.2,.5);
+    {const rg=new THREE.Mesh(new THREE.RingGeometry(DES.ldps-.18,DES.ldps+.18,96),new THREE.MeshBasicMaterial({color:0xe85a4f,transparent:true,opacity:.7,side:THREE.DoubleSide,depthWrite:false}));rg.rotation.x=-Math.PI/2;rg.position.set(x,.1,Z.EXIT-2);dg.add(rg);
+     tag(`Radio ${fmt(DES.ldps,1)} m desde el descargador: ningún equipo de 115 kV más lejos (margen ≥ 25 %, Grupo 1; se mide por el recorrido del conductor)`,x,1.4,Z.EXIT-2-DES.ldps,.5);}}
+   if(TR){const i=TR.i;dim(V(LX.bnd[i],.35,Z.B1-6.5),V(LX.bnd[i+1],.35,Z.B1-6.5),`Bahía de transformador ${fmt(LX.bnd[i+1]-LX.bnd[i],0)} m`,V(0,.7,0));}
+   // zona R del cerramiento (RETIE 2013, art. 23.2, tabla 23.1): franja junto a la cerca sin partes energizadas
+   {const R=DES.R,om=new THREE.MeshBasicMaterial({color:0xff7a1a,transparent:true,opacity:.28,depthWrite:false,side:THREE.DoubleSide});
+    const strip=(x0,z0,x1,z1)=>{const m=new THREE.Mesh(new THREE.PlaneGeometry(x1-x0,z1-z0),om);m.rotation.x=-Math.PI/2;m.position.set((x0+x1)/2,.08,(z0+z1)/2);dg.add(m);};
+    strip(fx0,fz0,fx1,fz0+R);strip(fx0,fz1-R,fx1,fz1);strip(fx0,fz0+R,fx0+R,fz1-R);strip(fx1-R,fz0+R,fx1,fz1-R);
+    tag(`Franja R = ${fmt(R,1)} m junto a la cerca (RETIE, tabla 23.1, 115 kV): ninguna parte energizada expuesta dentro · 230 kV: ${fmt(DES.R230,1)} m`,(fx0+fx1)/2,1.4,fz0+R/2,.5);
+    dim(V(fx0,YB,Z.B1),V(xmin,YB,Z.B1),`Cerca → extremo de barra ${fmt(xmin-fx0,1)} m ≥ R ${fmt(R,1)} m`,V(0,.6,0));
+    dim(V(fx0+.3,0,fz0+12),V(fx0+.3,DES.hc,fz0+12),`Cerca ${fmt(DES.hc,1)} m (mín. RETIE 2,5 m)`,V(1.6,0,0));}
+   if(three.veh){const {x:vx,z:vz}=three.veh,L=10,W=2.5,t=DES.T;
+     const env=new THREE.Mesh(new THREE.BoxGeometry(L+2*t,DES.hv,W+2*t),pm);env.position.set(vx,DES.hv/2,vz);dg.add(env);
+     const ed=new THREE.LineSegments(new THREE.EdgesGeometry(env.geometry),new THREE.LineBasicMaterial({color:0xe85a4f}));ed.position.copy(env.position);dg.add(ed);
+     const ex=vx-L/2-t-.4;
+     dim(V(ex,0,vz),V(ex,DES.veh,vz),`Vehículo ${fmt(DES.veh,1)} m`,V(-1.3,0,0));
+     dim(V(ex,DES.veh,vz),V(ex,DES.hv,vz),`+ T ${fmt(t,2)} m = ${fmt(DES.hvc,2)} → ${fmt(DES.hv,2)} m`,V(-1.6,.3,0));
+     dim(V(vx+1,DES.veh+.15,vz+W/2),V(vx+1,DES.veh+.15,vz+W/2+t),`T ${fmt(t,2)} m`,V(0,.5,0));
+     tag(`Zona del vehículo: ninguna parte energizada puede entrar en este volumen (perfil + T = valor básico ${fmt(DES.vb,2)} + 0,70 m, RETIE)`,vx,DES.hv+1.1,vz,.48);}
+   dg.traverse(o=>{if(o.isMesh)o.userData.noShadow=true;});}
+  if(three.r.shadowMap.enabled) root.traverse(o=>{if(o.isMesh&&!o.userData.noShadow&&!(o.parent&&(o.parent===three.gridG||o.parent===three.shdG))){o.castShadow=true;o.receiveShadow=true;}});
+  root.traverse(o=>{if(o.isMesh){let q=o;while(q&&!q.userData.el&&!q.userData.info)q=q.parent;if(q){if(q.userData.el)o.userData.elRef=q.userData.el;else o.userData.infoRef=q.userData.info;three.pick.push(o);}}});
+  const mk=new THREE.Mesh(new THREE.ConeGeometry(.55,1.3,4),M.mark);mk.rotation.x=Math.PI;mk.visible=false;root.add(mk);three.marker=mk;
+  three.span={xmin,xmax};
+  if(!three.camSet){camView('all');three.camSet=true;}
+  update3D();
+}
+function camView(k){if(!three) return; const s=three.span||{xmin:-30,xmax:30},w=s.xmax-s.xmin;
+  if(k==='tr'&&three.trX?.length){const a=Math.min(...three.trX),b=Math.max(...three.trX),m=(a+b)/2;three.cam.position.set(m-9,12,Z.EXIT+24);three.ctr.target.set(m,3.5,Z.EXIT+4);three.ctr.update();return;}
+  if(k==='hv'&&three.trX?.length){const x=three.trX[0]*1.1,z=Z.EXIT+48;three.cam.position.set(x+(x<0?-26:26),20,z+38);three.ctr.target.set(x,4,z+10);three.ctr.update();return;}
+  if(k==='ac'&&three.acX!=null){const az=three.acZ??Z.AC;three.cam.position.set(three.acX-11,7,az+1.5);three.ctr.target.set(three.acX,4.2,az);three.ctr.update();return;}
+  if(k==='city'){three.cam.position.set(-130,130,-150);three.ctr.target.set(0,0,12);three.ctr.update();return;}
+  if(k==='veh'&&three.veh){const {x,z}=three.veh;three.cam.position.set(x+11,7.5,z+17);three.ctr.target.set(x-2,2.8,z);three.ctr.update();return;}
+  if(k==='dim'&&three.dimX!=null){const x=three.dimX;three.cam.position.set(x-20,10,Z.B1-15);three.ctr.target.set(x,4.5,Z.CB);three.ctr.update();return;}
+  if(k==='all'){three.cam.position.set(s.xmin-w*.15,Math.max(34,w*.55),Z.EXIT+Math.max(30,w*.55));three.ctr.target.set(0,2,Z.CB);}
+  else {three.cam.position.set(s.xmin+w*.25,14,-22);three.ctr.target.set(0,4,Z.CB);}
+  three.ctr.update();}
+function cssColor(v){return new THREE.Color(getComputedStyle(document.documentElement).getPropertyValue(v).trim()||'#888');}
+function update3D(st){
+  if(!three||!three.root) return; st=st||status();
+  const cE=cssColor('--energ'),cA=cssColor('--earth'),cC=cssColor('--closed'),cO=cssColor('--open');
+  three.scene.background=cssColor('--sky'); three.scene.fog=new THREE.Fog(three.scene.background,160,420);
+  for(const [n,m] of Object.entries(three.nodeMats)){
+    if(st.ea.has(n)){m.color.copy(cA);m.emissive.copy(cA).multiplyScalar(.35);}
+    else if(st.en.has(n)){m.color.copy(cE);m.emissive.copy(cE).multiplyScalar(.55);}
+    else {m.color.setHex(0xc9cdd1);m.emissive.setHex(0);}}
+  for(const id in three.anim) three.anim[id].target=state.sw[id]?1:0;
+  for(const id in three.lamps){const m=three.lamps[id].material,c=state.sw[id]?cC:cO;m.color.copy(c);m.emissive.copy(c).multiplyScalar(.7);}
+  const nx=proc&&proc.steps[proc.i]&&!proc.steps[proc.i].manual?proc.steps[proc.i].id:null, mk=three.marker;
+  if(nx&&three.objs[nx]){const bb=new THREE.Box3().setFromObject(three.objs[nx]),c=bb.getCenter(new THREE.Vector3());mk.visible=true;mk.position.set(c.x,0,c.z);mk.userData.y=Math.max(bb.max.y,YB)+1.6;}
+  else mk.visible=false;
+  if(three.selBox){three.root.remove(three.selBox);three.selBox=null;}
+  if(selected&&three.objs[selected]){three.selBox=new THREE.BoxHelper(three.objs[selected],cssColor('--accent'));three.root.add(three.selBox);}
+}
+
+/* ---------- Cadena de aisladores (IEC 60815 / IEC 60071) ---------- */
+const UMS=[[72.5,[325]],[123,[450,550]],[145,[550,650]],[170,[650,750]],[245,[850,950,1050]],[300,[950,1050]],[362,[1050,1175]],[420,[1300,1425]],[550,[1425,1550]]];
+const POL={a:['a · Muy ligera','Zonas sin industria, poca población, lejos del mar.',22],b:['b · Ligera','Zonas agrícolas o con poca industria.',27.8],c:['c · Media','Industria moderada o a más de 10 km del mar.',34.7],d:['d · Pesada','Zona industrial o entre 3 y 10 km del mar. Equivale a 25 mm/kV fase–fase (Grupo 1).',43.3],e:['e · Muy pesada','Costa a menos de 3 km, desierto o industria pesada.',53.7]};
+const DISCOS={p3fl:['Polimérico Siemens 3FL3-069 (punto 4)',1289,3169,170],std:['Disco estándar U120B',146,295,255],fog:['Antiniebla U120BP',146,440,280],u160:['Estándar U160BS',170,380,280],custom:['Personalizado']};
+const CLR=[[325,630],[450,900],[550,1100],[650,1300],[750,1500],[850,1700],[950,1900],[1050,2100],[1175,2350],[1300,2600],[1425,2850],[1550,3100]];
+const P3FL={ref:'3FL3-074',arco:null,liwv:742,sml:100};
+const isPol=()=>state.ins.disco==='p3fl';
+/* Aislamiento: se calcula en la herramienta (calculos.js), aquí solo se lee para dibujar el 3D */
+function toolData(){return window.SUBE?SUBE.load():null;}
+function insCalc(){
+  const S=toolData(); if(!S) return {pol:true,bil:550,n:1,len:1393,fugaTot:3494,Lreq:3383,Ka:1.103,ok:true,A:{n:'Polimérico Siemens 3FL3-074',tipo:'pol',fuga:3494,lon:1393,liwv:742,sml:100}};
+  const a=SUBE.calcAis(S.g,S.ais), A=a.A, I=state.ins, pol=A.tipo==='pol';
+  Object.assign(I,{disco:pol?'p3fl':'std',esp:A.lon,fuga:A.fuga,diam:pol?170:254,alt:S.g.alt,pol:S.ais.pol});
+  Object.assign(P3FL,{ref:A.n.replace('Polimérico Siemens ',''),liwv:A.liwv||0,sml:A.sml,arco:A.lon===1289?1112:null});
+  state.sub.um=S.g.um;
+  return {pol,bil:a.BIL||550,n:a.n,len:a.lon,fugaTot:a.fugaTot,Lreq:a.Lreq,Ka:a.Ka,ok:a.ok,okFuga:a.okFuga,okLiwv:a.okLiwv,A,a,S};
+}
+const fld=(id,label,inner)=>`<label class="fld" for="${id}"><span>${label}</span>${inner}</label>`;
+const numIn=(pre,k,v,u,step='any')=>`<div class="u"><input id="${pre}-${k}" data-k="${k}" type="number" step="${step}" value="${esc(v)}">${u?`<em>${u}</em>`:''}</div>`;
+const toolLink=(hash,txt)=>`<a class="btn primary" href="index.html#${hash}" target="_top">${txt}</a>`;
+function renderIns(){
+  const R=insCalc(), a=R.a, A=R.A, S=R.S;
+  $('#insForm').innerHTML=`<h3>Cadena de aisladores</h3>
+   <p class="note">La coordinación de aislamiento y la cadena se calculan en la herramienta de diseño (módulo Aislamiento). Aquí se muestran los resultados que usa el patio 3D.</p>
+   <div class="row" style="margin:6px 0 4px">${toolLink('aislamiento','Editar en la herramienta')}</div>
+   <dl class="kv"><dt>Tensión máxima Um</dt><dd>${fmt(S?S.g.um:123)} kV</dd><dt>Altitud</dt><dd>${fmt(S?S.g.alt:1800,0)} msnm</dd><dt>Contaminación</dt><dd>${S?esc(SUBE.POL[S.ais.pol][0]):'d'}</dd><dt>Factor kd</dt><dd>${S?fmt(S.ais.kd,1):'1,1'}</dd><dt>Pararrayos</dt><dd>Ur ${S?fmt(S.ais.ur,0):96} kV · Upl ${S?fmt(S.ais.npr,0):226} kV</dd></dl>`;
+  renderInsRes();
+}
+function renderInsRes(){
+  const R=insCalc(), A=R.A, a=R.a||{};
+  $('#insRes').innerHTML=`<div class="big"><b>${R.bil}</b> kV BIL<span>${R.pol?esc(A.n):`${R.n} discos · ${esc(A.n)}`}</span></div>
+   <table class="ct"><tbody>
+     <tr><td>Fuga exigida</td><td>IEC 60815, criterio del Grupo 1</td><td><b>${fmt(R.Lreq,0)} mm</b></td></tr>
+     <tr><td>Fuga de la cadena</td><td>${esc(A.n)}</td><td><b>${fmt(R.fugaTot,0)} mm ${R.okFuga?'✔':'✘'}</b></td></tr>
+     <tr><td>Longitud de la cadena</td><td>${R.pol?'Un aislador por cadena':`${R.n} discos`}</td><td><b>${fmt(R.len,0)} mm</b></td></tr>
+     ${R.pol?`<tr><td>Impulso de rayo (LIWV)</td><td>Catálogo Siemens 3FL</td><td><b>${A.liwv} kV ≥ ${R.bil} kV</b></td></tr>`:''}
+     <tr><td>Carga mecánica (SML)</td><td>Catálogo</td><td><b>${A.sml} kN</b></td></tr>
+     <tr><td>Distancia máx. pararrayos–equipo</td><td>IEC 60071</td><td><b>${a.sel?fmt(a.sel.dmax,1)+' m':'—'}</b></td></tr>
+     <tr><td>Factor de altitud Ka</td><td>e<sup>(H − 1000)/8150</sup></td><td><b>${fmt(R.Ka,3)}</b></td></tr>
+   </tbody></table>
+   <p class="${R.ok?'ok':'warns'}" style="margin:0;${R.ok?'':'list-style:none;padding-left:12px'}">${R.ok?'La cadena cumple fuga e impulso. El patio 3D se dibuja con esta cadena.':'La cadena no cumple: revísela en la herramienta.'}</p>`;
+}
+
+/* ---------- Malla de puesta a tierra (IEEE Std 80) ---------- */
+const MAT={cu_soft:['Cobre recocido blando (100 %)',7.00],cu_hard:['Cobre duro (97 %)',7.06],ccs40:['Acero recubierto de cobre 40 %',10.45],ccs30:['Acero recubierto de cobre 30 %',12.06]};
+const SIZES=[['2/0 AWG',67.4,10.52],['4/0 AWG',107.2,13.26],['250 kcmil',126.7,14.6],['300 kcmil',152,16.0],['350 kcmil',177.3,17.3],['500 kcmil',253.4,20.6]];
+/* Malla: se calcula en la herramienta (calculos.js); aquí se lee para dibujarla en 3D */
+function gridCalc(){
+  const S=toolData(); if(!S) return {err:'Abra la herramienta de diseño para calcular la malla.'};
+  const m=S.mal, o=SUBE.calcMal(m);
+  Object.assign(state.grid,{lx:m.Lx,ly:m.Ly,D:m.D,h:m.h,nr:m.nR,lr:m.LR,rho:m.rho,rhos:m.rhos,hs:m.hs});
+  return {...o,nx:o.nX,ny:o.nY,nr:Math.max(0,Math.round(m.nR)),size:[SUBE.SIZES[m.size][0],o.Asec,o.dmm],okT:o.okEm,okS:o.okEs,sizeOk:o.okCond,Ett:o.Etouch,Est:o.Estep,m};
+}
+const GRID_OK={rho:800,rhos:5000,hs:.2,lx:120,ly:60,D:2.5,h:.6,nr:40,lr:9,i3:30,sf:.2,tf:.3,tc:.5,xr:0,peso:50,mat:'cu_hard',size:'auto'};
+function renderGrid(){
+  const r=gridCalc();
+  if(r.err){$('#gridForm').innerHTML=`<p class="note">${esc(r.err)}</p>`;$('#gridRes').innerHTML='';return;}
+  const m=r.m;
+  $('#gridForm').innerHTML=`<h3>Malla de puesta a tierra</h3>
+   <p class="note">La malla se calcula en la herramienta de diseño (módulo Malla de tierra, IEEE Std 80). Aquí se muestran los resultados; active "Malla de tierra" en el Patio 3D para verla.</p>
+   <div class="row" style="margin:6px 0 4px">${toolLink('malla','Editar en la herramienta')}</div>
+   <dl class="kv"><dt>Falla monofásica 3I₀</dt><dd>${fmt(m.If,2)} kA (ETAP)</dd><dt>Despeje</dt><dd>${fmt(m.tf,2)} s</dd><dt>Factor Sf</dt><dd>${fmt(m.Sf,2)}</dd><dt>Suelo ρ</dt><dd>${fmt(m.rho,0)} Ω·m</dd><dt>Grava</dt><dd>${fmt(m.rhos,0)} Ω·m · ${fmt(m.hs,2)} m</dd>
+   <dt>Malla</dt><dd>${fmt(m.Lx,0)} × ${fmt(m.Ly,0)} m · D ${fmt(r.Deff,2)} m</dd><dt>Electrodos</dt><dd>${r.nr} de ${fmt(m.LR,1)} m</dd><dt>Conductor</dt><dd>${esc(r.size[0])}</dd></dl>`;
+  renderGridRes();
+}
+function renderGridRes(){
+  const r=gridCalc(); if(r.err) return;
+  const chip=ok=>`<span class="chip ${ok?'en':'earth'}" style="${ok?'color:var(--open)':''}">${ok?'Cumple':'No cumple'}</span>`;
+  $('#gridRes').innerHTML=`<div class="verdict ${r.ok?'good':'bad'}">${r.ok?'La malla cumple las tensiones de toque y de paso.':'La malla no cumple: revísela en la herramienta.'}</div>
+   <table class="ct cmp"><thead><tr><td></td><td>Calculada</td><td>Tolerable</td><td></td></tr></thead><tbody>
+    <tr><td>Tensión de toque (de malla)</td><td><b>${fmt(r.Em,0)} V</b></td><td>${fmt(r.Etouch,0)} V</td><td>${chip(r.okEm)}</td></tr>
+    <tr><td>Tensión de paso</td><td><b>${fmt(r.Es,0)} V</b></td><td>${fmt(r.Estep,0)} V</td><td>${chip(r.okEs)}</td></tr>
+    <tr><td>Conductor</td><td><b>${esc(r.size[0])}</b></td><td>mín. ${fmt(r.Amin,1)} mm²</td><td>${chip(r.okCond)}</td></tr>
+   </tbody></table>
+   <div class="kpis"><div><span>Resistencia de malla Rg</span><b>${fmt(r.Rg,2)} Ω</b></div><div><span>Corriente por la malla IG</span><b>${fmt(r.IG/1000,2)} kA</b></div><div><span>Elevación de potencial GPR</span><b>${fmt(r.GPR/1000,1)} kV</b></div></div>
+   <p class="note" style="margin:0">Rg es mayor que el valor de referencia de 1 Ω del RETIE 2013 por la alta resistividad del suelo; el diseño se valida con las tensiones de toque y de paso.</p>`;
+}
+
+/* ---------- Apantallamiento (IEEE Std 998, esfera rodante) ---------- */
+function shdGeom(){
+  const c=T.c,n=T.all.length,BW=11,LX=layoutX(),SL=strLen(),hB=YB+SL,P=+state.shd.punta||0;
+  const gzM=c.b2?[Z.B1-GW(),(Z.B1+Z.B2)/2,Z.B2+GW()]:[Z.B1-GW(),Z.B1+GW()];
+  const gx=LX.gx;
+  const bays=T.all.map((id,i)=>({id,x:LX.xs[i],b:bayOf(id)})).filter(o=>o.b);
+  const lines=bays.filter(o=>o.b.tipo==='linea'), banks=bays.filter(o=>o.b.gen);
+  const rows=[];
+  gzM.forEach((z,i)=>rows.push({z,h:hB+3.7+P,xs:gx,sp:gx.length>1?Math.max(...gx.slice(1).map((v,j)=>v-gx[j])):BW,name:'Pórtico de barras',ab:'PB'}));
+  if(c.bt) [Z.BT-GW(),Z.BT+GW()].forEach(z=>rows.push({z,h:hB+3.7+P,xs:gx,sp:rows[0].sp,name:'Pórtico de transferencia',ab:'PT'}));
+  if(lines.length) rows.push({z:Z.EXIT,h:9.8+SL+3.35+P,xs:lines.flatMap(o=>[o.x-4.8,o.x+4.8]),sp:9.6,name:'Pórtico de salida de línea',ab:'PL'});
+  if(banks.length) rows.push({z:Z.EXIT+11,h:13+3.7+P,xs:banks.flatMap(o=>[o.x-7.5,o.x+7.5]),sp:15,name:'Pórtico de llegada 230 kV',ab:'P230'});
+  rows.sort((a,b)=>a.z-b.z);
+  const objs=[], bz=[['B1',Z.B1]]; if(c.b2) bz.push(['B2',Z.B2]); if(c.bt) bz.push(['BT',Z.BT]);
+  bz.forEach(([nm,z])=>PH.forEach(d=>objs.push({z:z+d*KB(),h:YB+.1,name:'Barra '+nm})));
+  objs.push({z:Z.CB,h:5.6,name:'Interruptores'},{z:Z.TP,h:6.3,name:'TP y DPS de bahía'});
+  if(lines.length) objs.push({z:Z.EXIT,h:9.8,name:'Conductores de salida de línea'});
+  if(banks.length) objs.push({z:Z.EXIT+4.35,h:7.4,name:'Bornes 230 kV de autotransformadores'},{z:Z.EXIT+11,h:13-SL,name:'Conductores de llegada 230 kV'});
+  return {rows,objs};
+}
+function shdCalc(){
+  const g=shdGeom(), sd=state.shd, bil=insCalc().bil, Zs=+sd.zs||350, k=+sd.k||1;
+  const Ic=2.2*bil/Zs, S=8*k*Math.pow(Ic,0.65), R=g.rows;
+  const segs=[];
+  if(R.length){
+    const f=R[0],h0=Math.min(f.h,S);segs.push({z1:f.z-Math.sqrt(S*S-(S-h0)**2),z2:f.z,zc:f.z-Math.sqrt(S*S-(S-h0)**2),yc:S});
+    for(let i=0;i<R.length-1;i++){const a=R[i],b=R[i+1],dz=b.z-a.z,dh=b.h-a.h,q=Math.hypot(dz,dh);
+      if(q>=2*S){segs.push({z1:a.z,z2:b.z,gap:true});continue;}
+      const t=Math.sqrt(S*S-(q/2)**2);let nz=-dh/q,nh=dz/q;if(nh<0){nz=-nz;nh=-nh;}
+      segs.push({z1:a.z,z2:b.z,zc:(a.z+b.z)/2+nz*t,yc:(a.h+b.h)/2+nh*t});}
+    const l=R[R.length-1],h1=Math.min(l.h,S),e=Math.sqrt(S*S-(S-h1)**2);segs.push({z1:l.z,z2:l.z+e,zc:l.z+e,yc:S});
+  }
+  const yArc=(sg,z)=>sg.gap?0:Math.max(0,sg.yc-Math.sqrt(Math.max(0,S*S-(z-sg.zc)**2)));
+  const protAt=z=>{const sg=segs.find(q=>z>=q.z1-1e-6&&z<=q.z2+1e-6);return sg?yArc(sg,z):0;};
+  const objs=g.objs.map(o=>{const pr=protAt(o.z);return {...o,prot:pr,ok:o.h<=pr+1e-6};});
+  const sag=d=>d/2>=S?Infinity:S-Math.sqrt(S*S-(d/2)**2);
+  const near=(z1,z2)=>Math.max(0,...g.objs.filter(o=>o.z>=z1&&o.z<=z2).map(o=>o.h));
+  const lon=R.map(r=>{const pr=r.h-sag(r.sp),req=near(r.z-4,r.z+4);return {name:r.name,z:r.z,sp:r.sp,h:r.h,prot:pr,req,ok:req<=pr};});
+  const dia=[];for(let i=0;i<R.length-1;i++){const a=R[i],b=R[i+1],sx=Math.max(a.sp,b.sp),d=Math.hypot(sx,b.z-a.z),pr=Math.min(a.h,b.h)-sag(d),req=near(a.z,b.z);
+    dia.push({a:a.name,b:b.name,sx,dz:b.z-a.z,d,prot:pr,req,ok:req<=pr});}
+  const ok=objs.every(o=>o.ok)&&lon.every(o=>o.ok)&&dia.every(o=>o.ok);
+  return {g,bil,Zs,k,Ic,S,segs,yArc,objs,lon,dia,ok};
+}
+function renderShd(){
+  const sd=state.shd, R=insCalc();
+  $('#shdForm').innerHTML=`<h3>Apantallamiento con puntas Franklin y cables de guarda</h3>
+   <p class="note">Método electrogeométrico de la esfera rodante (IEEE Std 998, modelo de Mousa). Las puntas van sobre los mástiles de los pórticos. Una zona queda protegida si una esfera de radio S que rueda apoyada en las puntas y en el suelo no toca los equipos.</p>
+   <fieldset><legend>Datos</legend><div class="grid">
+    ${fld('s-bil','BIL de los equipos',`<div class="u"><input id="s-bil" type="text" value="${R.bil}" disabled><em>kV</em></div>`)}
+    ${fld('s-zs','Impedancia de onda del barraje con corona Zs',numIn('s','zs',sd.zs,'Ω'))}
+    ${fld('s-k','Coeficiente k',`<select id="s-k" data-k="k"><option value="1" ${+sd.k===1?'selected':''}>1,0 · conservador</option><option value="1.2" ${+sd.k===1.2?'selected':''}>1,2 · mástiles</option></select>`)}
+    ${fld('s-punta','Altura de la punta Franklin sobre el mástil',numIn('s','punta',sd.punta,'m'))}
+   </div><p class="note" style="margin:8px 0 0">El BIL sale de la pestaña Aisladores. La altura de los pórticos depende de la cadena de aisladores calculada allí.</p></fieldset>
+   <fieldset><legend>Para la memoria de cálculo</legend><p class="note" style="margin:0">En Colombia el RETIE exige evaluar el riesgo por rayo y diseñar el sistema de protección externa con la NTC 4552 (serie IEC 62305). En el área de equipos de alta tensión de la subestación se usa IEEE Std 998 como aquí. El nivel ceráunico de Manizales es alto, así que la evaluación de riesgo casi siempre exige apantallamiento total del patio.</p></fieldset>`;
+  renderShdRes();
+}
+function renderShdRes(){
+  const r=shdCalc(), R=r.g.rows;
+  const zmin=Math.min(-8,...r.segs.map(q=>q.z1))-2, zmax=Math.max(...r.segs.map(q=>q.z2),40)+2, ymax=Math.max(20,...R.map(q=>q.h))+3;
+  const W=620,H=300,pl=34,pr=10,pt=14,pb=64,sx=(W-pl-pr)/(zmax-zmin),sy=(H-pt-pb)/ymax,sc=Math.min(sx,sy*1.6);
+  const X=z=>pl+(z-zmin)*sx, Y=y=>H-pb-y*sy;
+  let zone=`M${X(r.segs[0]?.z1??0)} ${Y(0)}`;
+  r.segs.forEach(sg=>{for(let i=0;i<=30;i++){const z=sg.z1+(sg.z2-sg.z1)*i/30;zone+=` L${X(z).toFixed(1)} ${Y(r.yArc(sg,z)).toFixed(1)}`;}});
+  zone+=` L${X(r.segs[r.segs.length-1]?.z2??0)} ${Y(0)} Z`;
+  let arcs='';r.segs.forEach(sg=>{let d='';for(let i=0;i<=30;i++){const z=sg.z1+(sg.z2-sg.z1)*i/30;d+=(i?' L':'M')+X(z).toFixed(1)+' '+Y(r.yArc(sg,z)).toFixed(1);}arcs+=`<path d="${d}" fill="none" stroke="var(--accent)" stroke-width="1.6" stroke-dasharray="${sg.gap?'3 3':'0'}"/>`;});
+  const masts=R.map((m,i)=>{const dy=i>0&&m.z-R[i-1].z<4&&i%2?24:0;return `<line x1="${X(m.z)}" y1="${Y(0)}" x2="${X(m.z)}" y2="${Y(m.h)}" stroke="var(--ink)" stroke-width="2"/><path d="M${X(m.z)-3} ${Y(m.h)+6} L${X(m.z)} ${Y(m.h)-3} L${X(m.z)+3} ${Y(m.h)+6}" fill="var(--ink)"/><text x="${X(m.z)}" y="${H-pb+14+dy}" text-anchor="middle" font-size="10" style="fill:var(--muted)">${m.ab}</text><text x="${X(m.z)}" y="${H-pb+26+dy}" text-anchor="middle" font-size="10" style="fill:var(--muted)">${fmt(m.h,1)} m</text>`;}).join('');
+  const objs=r.objs.map(o=>`<rect x="${X(o.z)-3}" y="${Y(o.h)}" width="6" height="${Y(0)-Y(o.h)}" fill="${o.ok?'var(--open)':'var(--warn)'}" fill-opacity=".55"/><circle cx="${X(o.z)}" cy="${Y(o.h)}" r="3" fill="${o.ok?'var(--open)':'var(--warn)'}"/>`).join('');
+  const yt=[0,5,10,15,20,25].filter(v=>v<=ymax).map(v=>`<line x1="${pl}" y1="${Y(v)}" x2="${W-pr}" y2="${Y(v)}" stroke="var(--line)"/><text x="${pl-5}" y="${Y(v)+4}" text-anchor="end" font-size="10" style="fill:var(--muted)">${v}</text>`).join('');
+  const svg=`<svg viewBox="0 0 ${W} ${H}" width="100%" style="max-width:${W}px" role="img" aria-label="Corte transversal con la esfera rodante">${yt}
+    <path d="${zone}" fill="var(--accent)" fill-opacity=".1"/>${arcs}<line x1="${pl}" y1="${Y(0)}" x2="${W-pr}" y2="${Y(0)}" stroke="var(--ink)" stroke-width="1.4"/>${objs}${masts}
+    <text x="${pl}" y="${pt-2}" font-size="10" style="fill:var(--muted)">m</text></svg>`;
+  const chip=ok=>`<span class="chip ${ok?'en':'earth'}" style="${ok?'color:var(--open)':''}">${ok?'Cumple':'No cumple'}</span>`;
+  const bad=r.objs.filter(o=>!o.ok);
+  $('#shdRes').innerHTML=`<div class="verdict ${r.ok?'good':'bad'}">${r.ok?'Todo el patio queda dentro de la zona protegida.':'Hay equipos fuera de la zona protegida.'}</div>
+   <div class="kpis"><div><span>Corriente crítica Ic = 2,2·BIL/Zs</span><b>${fmt(r.Ic,2)} kA</b></div><div><span>Radio de la esfera S = 8·k·Ic<sup>0,65</sup></span><b>${fmt(r.S,1)} m</b></div><div><span>Puntas Franklin</span><b>${R.reduce((a,m)=>a+m.xs.length,0)}</b></div></div>
+   <h3 style="margin:14px 0 4px">Corte transversal</h3>${svg}
+   <p class="note" style="margin:0">Arcos: la esfera apoyada en las puntas. Barras verdes: equipos protegidos; rojas: equipos que la esfera toca. PB pórtico de barras, PT de transferencia, PL de salida de línea, P230 de llegada 230 kV.</p>
+   ${bad.length?`<ul class="warns">${bad.map(o=>`<li>${esc(o.name)}: ${fmt(o.h,1)} m de altura y la zona protegida llega a ${fmt(o.prot,1)} m. Suba las puntas o agregue un mástil.</li>`).join('')}</ul>`:''}
+   <table class="ct cmp"><thead><tr><td>A lo largo de cada pórtico</td><td>Separación</td><td>Protege hasta</td><td>Equipo más alto</td><td></td></tr></thead><tbody>
+    ${r.lon.map(o=>`<tr><td>${esc(o.name)} (z = ${fmt(o.z,1)} m)</td><td>${fmt(o.sp,1)} m</td><td><b>${fmt(o.prot,1)} m</b></td><td>${fmt(o.req,1)} m</td><td>${chip(o.ok)}</td></tr>`).join('')}</tbody></table>
+   <table class="ct cmp"><thead><tr><td>Centro de 4 puntas</td><td>Diagonal</td><td>Protege hasta</td><td>Equipo más alto</td><td></td></tr></thead><tbody>
+    ${r.dia.map(o=>`<tr><td>${esc(o.a)} ↔ ${esc(o.b)}</td><td>${fmt(o.d,1)} m</td><td><b>${isFinite(o.prot)?fmt(o.prot,1)+' m':'—'}</b></td><td>${fmt(o.req,1)} m</td><td>${chip(o.ok)}</td></tr>`).join('')}</tbody></table>
+   <p class="note">Prediseño. Las puntas se suponen alineadas entre pórticos vecinos y se toma la mayor separación de cada fila. Verifique la zona en planta para los mástiles de las esquinas y el riesgo según NTC 4552.</p>`;
+}
+$('#pane-shd').addEventListener('input',e=>{const k=e.target.dataset.k; if(!k) return; state.shd[k]=e.target.value===''?0:parseFloat(e.target.value); dirty3D=true; save(); renderShdRes();});
+
+/* ---------- Render general ---------- */
+let tab='sld';
+function render(){renderAcc();if(tab==='ied') renderIED();const st=status();renderSVG(st);renderSide(st);if(three&&!dirty3D) update3D(st); else if(three&&tab==='3d') build3D();}
+function topoChanged(){build();proc=null;dirty3D=true;save();renderData();render();}
+function clickEl(id){selected=id; if(mode==='op') operate(id); else render();}
+$('#sld').addEventListener('click',e=>{const g=e.target.closest('[data-el]'); if(g) clickEl(g.dataset.el);});
+$('#sld').addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){const g=e.target.closest('[data-el]'); if(g){e.preventDefault();const id=g.dataset.el;clickEl(id);requestAnimationFrame(()=>{const n=document.querySelector(`#sld [data-el="${id}"]`);if(n)n.focus();});}}});
+function setMode(m){mode=m;$('#mOp').setAttribute('aria-pressed',m==='op');$('#mIn').setAttribute('aria-pressed',m!=='op');
+  $('#modeHint').textContent=m==='op'?'Clic en un interruptor o seccionador para abrirlo o cerrarlo. Los enclavamientos bloquean maniobras inseguras.':'Clic en un equipo para ver sus datos y si se puede operar, sin maniobrarlo.';}
+$('#didBtn').onclick=()=>{const c=$('#didac');c.checked=!c.checked;c.dispatchEvent(new Event('change'));};
+$('#didac').onchange=e=>{didactic=e.target.checked;$('#didBtn').setAttribute('aria-pressed',didactic);$('#didBtn').textContent=didactic?'⚡ Modo didáctico: ENCENDIDO':'⚡ Modo didáctico: apagado';document.body.classList.toggle('didactic',didactic);$('#sndWrap').hidden=!didactic;
+  log(didactic?'Modo didáctico activado: enclavamientos desactivados, las maniobras indebidas muestran sus consecuencias':'Modo didáctico desactivado: enclavamientos activos','info');
+  $('#modeHint').textContent=didactic?'Modo didáctico: los enclavamientos están desactivados. Haga una maniobra indebida para ver qué pasaría en la realidad.':'Clic en un interruptor o seccionador para abrirlo o cerrarlo. Los enclavamientos bloquean maniobras inseguras.';render();};
+function setFc(on){state.fc=on;$('#fcOn').setAttribute('aria-pressed',on);$('#fcOff').setAttribute('aria-pressed',!on);$('#legBase').hidden=on;$('#legFc').hidden=!on;save();render();}
+$('#fcOn').onclick=()=>setFc(true); $('#fcOff').onclick=()=>setFc(false);
+$('#mOp').onclick=()=>setMode('op'); $('#mIn').onclick=()=>setMode('in');
+function setTab(t){tab=t;document.querySelectorAll('.tab').forEach(b=>b.setAttribute('aria-selected',b.dataset.tab===t));
+  ['sld','3d','data','ins','grid','shd','ied'].forEach(k=>$('#pane-'+k).hidden=t!==k); const op=t==='sld'||t==='3d';
+  $('#opbar').hidden=!op;$('#acBar').hidden=!op;$('#legend').hidden=!op;$('#camBtns').hidden=t!=='3d';$('#fcSeg').hidden=t!=='sld'; $('main.app').classList.toggle('wide',t==='ins'||t==='grid'||t==='shd'||t==='ied');
+  if(three) three.hidden=t!=='3d';
+  if(t==='3d'){ if(!three) init3D(); if(three){size3D(); if(dirty3D) (document.fonts?document.fonts.ready:Promise.resolve()).then(()=>{build3D();}); else update3D();} }
+  if(t==='data') renderData(); if(t==='ins') renderIns(); if(t==='grid') renderGrid(); if(t==='shd') renderShd(); if(t==='ied') renderIED();
+  try{localStorage.setItem(KEY+'-tab',t);}catch(e){}}
+document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>setTab(b.dataset.tab));
+$('#showGrid').onchange=e=>{if(three&&three.gridG) three.gridG.visible=e.target.checked;};
+$('#showCity').onchange=e=>{if(three&&three.cityG) three.cityG.visible=e.target.checked;};
+$('#showShd').onchange=e=>{if(three&&three.shdG) three.shdG.visible=e.target.checked;};
+$('#showDim').onchange=e=>{if(three&&three.dimG){three.dimG.visible=e.target.checked;if(e.target.checked)camView('dim');}};
+$('#camAll').onclick=()=>camView('all'); $('#camBus').onclick=()=>camView('bus'); $('#camAC').onclick=()=>camView('ac'); $('#camTR').onclick=()=>camView('tr'); $('#camHV').onclick=()=>camView('hv'); $('#camVeh').onclick=()=>camView('veh'); $('#camCity').onclick=()=>camView('city');
+function setFS(on){const st=$('#stage'),b=$('#btnFS');st.classList.toggle('fs',on);b.setAttribute('aria-pressed',on);b.textContent=on?'✕ Salir de pantalla completa':'⛶ Pantalla completa';
+  if(on){try{const p=st.requestFullscreen&&st.requestFullscreen();if(p&&p.catch)p.catch(()=>{});}catch(e){}}
+  else if(document.fullscreenElement){try{document.exitFullscreen();}catch(e){}}
+  setTimeout(size3D,60);}
+$('#btnFS').onclick=()=>setFS(!$('#stage').classList.contains('fs'));
+document.addEventListener('fullscreenchange',()=>{if(!document.fullscreenElement&&$('#stage').classList.contains('fs'))setFS(false);});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&$('#stage').classList.contains('fs'))setFS(false);});
+document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>{if(t.dataset.tab!=='3d'&&$('#stage').classList.contains('fs'))setFS(false);}));
+$('#cfgSel').onchange=e=>{state.config=e.target.value;build();normalState();log(`Configuración: ${CONFIGS[state.config].name}`,'info');topoChanged();};
+$('#btnReset').onclick=()=>{normalState();proc=null;log('Estado normal restablecido','info');save();render();};
+const mq=window.matchMedia('(prefers-color-scheme: dark)'); mq.addEventListener?.('change',()=>update3D());
+new MutationObserver(()=>update3D()).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
+
+/* ---------- Arranque ---------- */
+build();
+if(needNormal||!Object.entries(state.sw).some(([k,v])=>v&&!/:H[CSE]$/.test(k))) normalState();
+$('#cfgSel').value=state.config; headerName();
+log(T.c.b2?'Simulador listo. Estado normal: todos los circuitos en la barra principal (B1), barra de reserva (B2) desenergizada y 52-AC abierto.':'Simulador listo. Estado normal: todos los circuitos en la barra principal.','info');
+render();
+let t0='sld'; try{t0=localStorage.getItem(KEY+'-tab')||'sld';}catch(e){}
+setTab(['sld','3d','data','ins','grid','shd','ied'].includes(t0)?t0:'sld');
+setFc(state.fc!==false);
+</script>
+<script>window.addEventListener("storage",e=>{if(window.SUBE&&e.key===SUBE.KEY){clearTimeout(window._sr);window._sr=setTimeout(()=>location.reload(),700);}});</script>
+
+</body></html>
